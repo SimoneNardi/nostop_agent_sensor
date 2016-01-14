@@ -37,8 +37,10 @@ int16_t lastEncoded = 0;
 int16_t left_wheel;
 int16_t right_wheel;
 
+#define message_size 49
 // STRUCT
 struct arduino_data {
+  char start;
   float qx, qy, qz, qw;
   float ax, ay, az;
   float wx, wy, wz;
@@ -47,7 +49,7 @@ struct arduino_data {
 
 union {
   arduino_data sensor_data;
-  char buffer_char[48];
+  char buffer_char[message_size];
 } arduino_msg;
 
 
@@ -201,12 +203,14 @@ void loop() {
     arduino_msg.sensor_data.ay = aaReal.y;
     arduino_msg.sensor_data.az = aaReal.z;
     
-    
-    Serial.write(arduino_msg.buffer_char, 48);
+    arduino_msg.sensor_data.start = 90;
+    Serial.write(arduino_msg.buffer_char, message_size);
     
     // blink LED to indicate activity
     blinkState = !blinkState;
     digitalWrite(LED_PIN, blinkState);
   }
-
+  delay(25);
 }
+
+

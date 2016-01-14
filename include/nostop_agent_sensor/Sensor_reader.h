@@ -12,12 +12,13 @@
 #include "serial/serial.h"
 #include <sensor_msgs/Imu.h>
 #include <nav_msgs/Odometry.h>
-#define message_size 48
+#define message_size 49
 namespace Robotics 
 {
 	namespace GameTheory
 	{
 	   struct arduino_data{ 
+	      char start;
 	      float qx,qy,qz,qw;
 	      float ax,ay,az;
 	      float wx,wy,wz;
@@ -32,6 +33,7 @@ namespace Robotics
 		class Sensor_reader : public ThreadBase
 		{
 		public:
+			Mutex m_mutex;
 			ros::NodeHandle reader;
 			ros::Publisher m_reader_imu_pub;
 			ros::Publisher m_reader_odom_pub;

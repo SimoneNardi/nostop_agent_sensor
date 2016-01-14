@@ -8,6 +8,12 @@ using namespace std;
 using namespace Robotics;
 using namespace Robotics::GameTheory;
 
+//global variables
+int package_elements = 0;
+uint8_t data_array[message_size];
+std::vector<uint8_t> data_vector;
+
+
 Sensor_reader::Sensor_reader():
 count(0)
 {
@@ -15,10 +21,12 @@ count(0)
   // Publish Sensor Information:
   m_reader_imu_pub = reader.advertise<sensor_msgs::Imu>("test_imu", 5);
   m_reader_odom_pub = reader.advertise<nav_msgs::Odometry>("test_odom", 5);
+  
   try{
-    m_serial_port.setPort("/dev/ttyACM0");
+     m_serial_port.setPort("/dev/ttyACM1");
 //     m_serial_port.setPort("/dev/ttyUSB0");
     m_serial_port.setBaudrate(115200);
+//     m_serial_port.
     m_serial_port.open();
   } catch(std::exception& e){
     std::cerr<<"Error open serial port"<< e.what() << std::endl;
@@ -28,36 +36,58 @@ count(0)
 
 /////////////////////////////////////////////
 Sensor_reader::~Sensor_reader()
-{}
+{ m_serial_port.close();}
 
+bool msg_start = false;
 /////////////////////////////////////////////
 void Sensor_reader::run()
 {
   while(ros::ok()){
      arduino_data arduino_values;
-     std::vector<uint8_t> data_vector;
-     size_t output_size;
-     output_size = m_serial_port.read(data_vector,message_size);
-     int size_out = output_size;
-     if(size_out == message_size){
-		count= count+1;
-		  for(int i = 0 ;i<message_size;i++)
-		  {
-			arduino_msg.buffer_char[i] = data_vector[i]; 
-		  }
-		arduino_values = arduino_msg.sensor_data;
-		
-      arduino_to_imu(arduino_values);
-      m_reader_imu_pub.publish<sensor_msgs::Imu>(m_imu);
-      arduino_to_odometry(arduino_values);
-      m_reader_odom_pub.publish<nav_msgs::Odometry>(m_odometry);
-//       ROS_INFO("NORMA-->%f",sqrt(pow(arduino_values.qx,2)+pow(arduino_values.qy,2)+pow(arduino_values.qz,2)+pow(arduino_values.qw,2)));     
-      }
-      ROS_INFO("message_ok-->%d",count);
+     while ( package_elements < message_size)
+     { 
+       int size_int;
+       std::vector<uint8_t> read_byte;
+       size_t size;
+       size = m_serial_port.read(read_byte,1);
+       size_int = size;
+       if (size == 1)
+       {
+		uint8_t single_byte = read_byte.at(0);
+		if(single_byte == 90 && msg_start == false)
+		{
+			msg_start =true;
+			data_vector.push_back(single_byte);
+			package_elements = package_elements + 1;
+		}
+		if (msg_start)
+		{
+			data_vector.push_back(single_byte);
+			package_elements = package_elements + 1;
+		}
+       }
+     }
+     if (package_elements == message_size)
+     {		
+		for(int i = 0 ;i<message_size;i++)
+		{	
+			arduino_msg.buffer_char[i] = data_vector[i];
+			ROS_INFO("data-->%d",data_vector[i]);
+			ROS_INFO("buffer-->%d",arduino_msg.buffer_char[i]);
+			ros::Duration(0.25).sleep();
+		}
+	arduino_values = arduino_msg.sensor_data;
+	ROS_INFO("%f",arduino_values.qw);
+	arduino_to_imu(arduino_values);
+	m_reader_imu_pub.publish<sensor_msgs::Imu>(m_imu);
+	arduino_to_odometry(arduino_values);
+	m_reader_odom_pub.publish<nav_msgs::Odometry>(m_odometry);
+	msg_start = false;
+	package_elements = 0;
+	data_vector.clear();
+    }    
   }
-  
 }
-
 void Sensor_reader::arduino_to_imu(arduino_data& from_arduino)
 {
   // IMU values publish
