@@ -51,8 +51,9 @@ void Sensor_reader::run()
       m_reader_imu_pub.publish<sensor_msgs::Imu>(m_imu);
       arduino_to_odometry(arduino_values);
       m_reader_odom_pub.publish<nav_msgs::Odometry>(m_odometry);
-      ROS_INFO("NORMA-->%f",sqrt(pow(arduino_values.qx,2)+pow(arduino_values.qy,2)+pow(arduino_values.qz,2)+pow(arduino_values.qw,2)));     
+//       ROS_INFO("NORMA-->%f",sqrt(pow(arduino_values.qx,2)+pow(arduino_values.qy,2)+pow(arduino_values.qz,2)+pow(arduino_values.qw,2)));     
       }
+      ROS_INFO("message_ok-->%d",count);
   }
   
 }
@@ -89,7 +90,7 @@ void Sensor_reader::arduino_to_odometry(arduino_data& from_arduino)
 std::vector<float> Sensor_reader::encoder_to_odometry(int& left_wheel, int& right_wheel)
 {
       //TODO     
-  ROS_INFO("%d",left_wheel);
+//   ROS_INFO("%d",left_wheel);
   std::vector<float> l_xyz;
   return l_xyz;
 }
