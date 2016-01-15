@@ -12,23 +12,33 @@
 #include "serial/serial.h"
 #include <sensor_msgs/Imu.h>
 #include <nav_msgs/Odometry.h>
-#define message_size 49
+
+#define message_size 50
 namespace Robotics 
 {
 	namespace GameTheory
 	{
 	   struct arduino_data{ 
-	      char start;
-	      float qx,qy,qz,qw;
-	      float ax,ay,az;
-	      float wx,wy,wz;
-	      int lw,rw;
+	      uint8_t start;
+	      float qx;
+	      float qy;
+	      float qz;
+	      float qw;
+	      float ax;
+	      float ay;
+	      float az;
+	      float wx;
+	      float wy;
+	      float wz;
+	      int lw;
+	      int rw;
+	      uint8_t checksum;
 	      };
 	      
-	  union {
+	  union arduino_msg_union{
 	    arduino_data sensor_data;
-	    char buffer_char[message_size];
-	  }arduino_msg;
+	    uint8_t byte_buffer[message_size];
+	  };
 	  
 		class Sensor_reader : public ThreadBase
 		{

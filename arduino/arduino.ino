@@ -25,31 +25,32 @@ VectorInt16 aa;         // [x, y, z]            accel sensor measurements
 VectorInt16 aaReal;     // [x, y, z]            gravity-free accel sensor measurements
 VectorInt16 aaWorld;    // [x, y, z]            world-frame accel sensor measurements
 VectorFloat gravity;    // [x, y, z]            gravity vector
-int16_t gyro[3];       // [wx,wy,wz]           angular velocity
+int gyro[3];            // [wx,wy,wz]           angular velocity
 float euler[3];         // [psi, theta, phi]    Euler angle container
 float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container and gravity vector
 
 //encoder
-#define encoderPin 12
-int16_t actualEncoded = 0;
-int16_t lastEncoded = 0;
+#define LeftEncoderPin 12
+bool actualEncoded;
+bool lastEncoded;
 
-int16_t left_wheel;
-int16_t right_wheel;
+int left_wheel;
+int right_wheel;
 
-#define message_size 49
+#define message_size 50
 // STRUCT
 struct arduino_data {
-  char start;
+  byte start;
   float qx, qy, qz, qw;
   float ax, ay, az;
   float wx, wy, wz;
   int lw, rw;
+  byte checksum;
 };
 
 union {
   arduino_data sensor_data;
-  char buffer_char[message_size];
+  byte byte_buffer[message_size];
 } arduino_msg;
 
 
@@ -68,7 +69,11 @@ void dmpDataReady() {
 // ================================================================
 
 void setup() {
-  pinMode(encoderPin, INPUT);//TEST
+  //ENCODER
+  pinMode(LeftEncoderPin, INPUT);
+  actualEncoded = digitalRead(LeftEncoderPin);
+  lastEncoded = digitalRead(LeftEncoderPin);
+  
   // join I2C bus (I2Cdev library doesn't do this automatically)
 #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
   Wire.begin();
@@ -156,7 +161,7 @@ void loop() {
   fifoCount = mpu.getFIFOCount();
 
   // check for overflow (this should never happen unless our code is too inefficient)
-  if ((mpuIntStatus & 0x10) || fifoCount == 1024) {
+  if ((mpuIntStatus & 0x10) || fifoCount == 4096) {
     // reset so we can continue cleanly
     mpu.resetFIFO();
     Serial.println(F("FIFO overflow!"));
@@ -180,11 +185,10 @@ void loop() {
     mpu.dmpGetGyro(gyro, fifoBuffer);
     mpu.dmpGetLinearAccelInWorld(&aaWorld, &aaReal, &q);
     //  LEFT ENCODER 
-    actualEncoded = digitalRead(encoderPin);
+    actualEncoded = digitalRead(LeftEncoderPin);
     if (actualEncoded != lastEncoded)
     {
       left_wheel++;
-      //Serial.println(encoded);
       lastEncoded = actualEncoded;
       arduino_msg.sensor_data.lw = left_wheel; 
     }
@@ -192,7 +196,7 @@ void loop() {
     arduino_msg.sensor_data.rw = 0; //TODO
     
     //IMU
-    arduino_msg.sensor_data.qx = q.x;
+    arduino_msg.sensor_data.qx = 10;
     arduino_msg.sensor_data.qy = q.y;
     arduino_msg.sensor_data.qz = q.z;
     arduino_msg.sensor_data.qw = q.w;
@@ -204,7 +208,8 @@ void loop() {
     arduino_msg.sensor_data.az = aaReal.z;
     
     arduino_msg.sensor_data.start = 90;
-    Serial.write(arduino_msg.buffer_char, message_size);
+    arduino_msg.byte_buffer[message_size-1] = CRC8(arduino_msg.byte_buffer,message_size-2);
+    Serial.write(arduino_msg.byte_buffer, message_size);
     
     // blink LED to indicate activity
     blinkState = !blinkState;
@@ -213,4 +218,22 @@ void loop() {
   delay(25);
 }
 
-
+//CRC-8 - algoritmo basato sulle formule di CRC-8 di Dallas/Maxim
+//codice pubblicato sotto licenza GNU GPL 3.0
+//CRC-8 - algoritmo basato sulle formule di CRC-8 di Dallas/Maxim
+//codice pubblicato sotto licenza GNU GPL 3.0
+byte CRC8(const byte *data, byte len) {
+  byte crc = 0x00;
+  while (len--) {
+    byte extract = *data++;
+    for (byte tempI = 8; tempI; tempI--) {
+      byte sum = (crc ^ extract) & 0x01;
+      crc >>= 1;
+      if (sum) {
+        crc ^= 0x8C;
+      }
+      extract >>= 1;
+    }
+  }
+  return crc;
+}
