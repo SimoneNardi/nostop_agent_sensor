@@ -8,7 +8,7 @@
 #endif
 MPU6050 mpu;
 
-#define LED_PIN 13 
+#define LED_PIN 13
 bool blinkState = false;
 
 // MPU control/status vars
@@ -49,8 +49,8 @@ struct arduino_data {
 };
 
 union {
-  arduino_data sensor_data;
   byte byte_buffer[message_size];
+  arduino_data sensor_data;
 } arduino_msg;
 
 
@@ -73,7 +73,7 @@ void setup() {
   pinMode(LeftEncoderPin, INPUT);
   actualEncoded = digitalRead(LeftEncoderPin);
   lastEncoded = digitalRead(LeftEncoderPin);
-  
+
   // join I2C bus (I2Cdev library doesn't do this automatically)
 #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
   Wire.begin();
@@ -184,33 +184,33 @@ void loop() {
     mpu.dmpGetLinearAccel(&aaReal, &aa, &gravity);
     mpu.dmpGetGyro(gyro, fifoBuffer);
     mpu.dmpGetLinearAccelInWorld(&aaWorld, &aaReal, &q);
-    //  LEFT ENCODER 
+    //  LEFT ENCODER
     actualEncoded = digitalRead(LeftEncoderPin);
     if (actualEncoded != lastEncoded)
     {
       left_wheel++;
       lastEncoded = actualEncoded;
-      arduino_msg.sensor_data.lw = left_wheel; 
+      arduino_msg.sensor_data.lw = 11;//left_wheel;
     }
     //Serial.println(encoded);
-    arduino_msg.sensor_data.rw = 0; //TODO
-    
+    arduino_msg.sensor_data.rw = 12;//0; //TODO
+
     //IMU
-    arduino_msg.sensor_data.qx = 10;
-    arduino_msg.sensor_data.qy = q.y;
-    arduino_msg.sensor_data.qz = q.z;
-    arduino_msg.sensor_data.qw = q.w;
-    arduino_msg.sensor_data.wx = gyro[0];
-    arduino_msg.sensor_data.wy = gyro[1];
-    arduino_msg.sensor_data.wz = gyro[2];
-    arduino_msg.sensor_data.ax = aaReal.x;
-    arduino_msg.sensor_data.ay = aaReal.y;
-    arduino_msg.sensor_data.az = aaReal.z;
-    
+    arduino_msg.sensor_data.qx = 1;//122.35;
+    arduino_msg.sensor_data.qy = 2;//q.y;
+    arduino_msg.sensor_data.qz = 3;//q.z;
+    arduino_msg.sensor_data.qw = 4;//q.w;
+    arduino_msg.sensor_data.wx = 5;//gyro[0];
+    arduino_msg.sensor_data.wy = 6;//gyro[1];
+    arduino_msg.sensor_data.wz = 7;//gyro[2];
+    arduino_msg.sensor_data.ax = 8;//aaReal.x;
+    arduino_msg.sensor_data.ay = 9;//aaReal.y;
+    arduino_msg.sensor_data.az = 10;//aaReal.z;
+
     arduino_msg.sensor_data.start = 90;
-    arduino_msg.byte_buffer[message_size-1] = CRC8(arduino_msg.byte_buffer,message_size-2);
+    arduino_msg.byte_buffer[message_size - 1] = CRC8(arduino_msg.byte_buffer, message_size - 2);
     Serial.write(arduino_msg.byte_buffer, message_size);
-    
+
     // blink LED to indicate activity
     blinkState = !blinkState;
     digitalWrite(LED_PIN, blinkState);
@@ -218,8 +218,6 @@ void loop() {
   delay(25);
 }
 
-//CRC-8 - algoritmo basato sulle formule di CRC-8 di Dallas/Maxim
-//codice pubblicato sotto licenza GNU GPL 3.0
 //CRC-8 - algoritmo basato sulle formule di CRC-8 di Dallas/Maxim
 //codice pubblicato sotto licenza GNU GPL 3.0
 byte CRC8(const byte *data, byte len) {

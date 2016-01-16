@@ -13,7 +13,18 @@ int package_elements = 0;
 std::vector<uint8_t> data_vector;
 bool msg_start = false;
 
-
+void test()
+{
+	float f = 0.6;
+	unsigned char *pc;
+	pc = (unsigned char*)&f;
+	*(unsigned int*)&f = (pc[3] << 24) | (pc[2] << 16) | (pc[1] << 8) | (pc[0] << 0);
+	ROS_INFO("%d",pc[0]);
+	ROS_INFO("%d",pc[1]);
+	ROS_INFO("%d",pc[2]);
+	ROS_INFO("%d",pc[3]);
+	ROS_INFO("--->%f<---",f);
+}
 
 //CRC-8 - algoritmo basato sulle formule di CRC-8 di Dallas/Maxim
 //codice pubblicato sotto licenza GNU GPL 3.0
@@ -43,8 +54,8 @@ count(0)
   m_reader_odom_pub = reader.advertise<nav_msgs::Odometry>("test_odom", 5);
   
   try{
-     m_serial_port.setPort("/dev/ttyACM0");// arduino uno
-//     m_serial_port.setPort("/dev/ttyUSB0");// arduino duemilanove
+//      m_serial_port.setPort("/dev/ttyACM0");// arduino uno
+    m_serial_port.setPort("/dev/ttyUSB0");// arduino duemilanove
     m_serial_port.setBaudrate(115200);
 //     m_serial_port.
     m_serial_port.open();
@@ -66,24 +77,25 @@ Sensor_reader::~Sensor_reader()
 void Sensor_reader::run()
 {
   while(ros::ok()){
+//     test();
      arduino_msg_union arduino_msg;
      arduino_data arduino_values;
      while ( package_elements < message_size)
      { 
-       uint8_t *single_read_byte;
+       unsigned char single_read_byte;
        size_t size;
        int size_int;
-       size = m_serial_port.read(single_read_byte,1);
+       size = m_serial_port.read(&single_read_byte,1);
        size_int = size;
        if (size == 1)
        {
-		if(*single_read_byte == 90 && msg_start == false )
+		if(single_read_byte == 90 && msg_start == false )
 		{
 			msg_start = true;
 		}
 		if (msg_start)
 		{
-			data_vector.push_back(*single_read_byte);
+			data_vector.push_back(single_read_byte);
 			package_elements = package_elements + 1;
 		}
        }
@@ -98,9 +110,17 @@ void Sensor_reader::run()
 	received_msg_checksum_value = data_vector[package_elements-1];
 	sended_msg_checksum_value = CRC8(arduino_msg.byte_buffer,package_elements-2);
 	if(sended_msg_checksum_value == received_msg_checksum_value)
-	{
+	{	
+		float f;
+		*(unsigned int*)&f = (arduino_msg.byte_buffer[4] << 24) | (arduino_msg.byte_buffer[3] << 16) | (arduino_msg.byte_buffer[2] << 8) | (arduino_msg.byte_buffer[1] << 0);
+		ROS_INFO("%c",arduino_msg.byte_buffer[1]);
+		ROS_INFO("%c",arduino_msg.byte_buffer[2]);
+		ROS_INFO("%c",arduino_msg.byte_buffer[3]);
+		ROS_INFO("%c",arduino_msg.byte_buffer[4]);
+		ROS_INFO("--->%f<---",f);
+		
 		arduino_values = arduino_msg.sensor_data;
-		arduino_to_imu(arduino_values);
+		arduino_to_imu(arduino_msg.sensor_data);
 		m_reader_imu_pub.publish<sensor_msgs::Imu>(m_imu);
 		arduino_to_odometry(arduino_values);
 		m_reader_odom_pub.publish<nav_msgs::Odometry>(m_odometry);
@@ -157,6 +177,3 @@ std::vector<float> Sensor_reader::encoder_to_odometry(int& left_wheel, int& righ
   std::vector<float> l_xyz;
   return l_xyz;
 }
-
-
-

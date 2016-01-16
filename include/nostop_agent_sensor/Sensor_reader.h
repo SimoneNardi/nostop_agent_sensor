@@ -36,8 +36,8 @@ namespace Robotics
 	      };
 	      
 	  union arduino_msg_union{
-	    arduino_data sensor_data;
 	    uint8_t byte_buffer[message_size];
+	    arduino_data sensor_data;
 	  };
 	  
 		class Sensor_reader : public ThreadBase
