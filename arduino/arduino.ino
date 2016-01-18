@@ -2,6 +2,7 @@
 
 #include "I2Cdev.h"
 #include "MPU6050_6Axis_MotionApps20.h"
+#include "digitalWriteFast.h"
 
 #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
 #include "Wire.h"
@@ -28,11 +29,14 @@ VectorFloat gravity;    // [x, y, z]            gravity vector
 int gyro[3];            // [wx,wy,wz]           angular velocity
 float euler[3];         // [psi, theta, phi]    Euler angle container
 float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container and gravity vector
-
+#include <digitalWriteFast.h>
 //encoder
-#define LeftEncoderPin 12
-bool actualEncoded;
-bool lastEncoded;
+#define LeftEncoderPin 3
+bool LeftActualEncoded;
+bool LeftLastEncoded;
+#define RightEncoderPin 4 // TODO
+bool RightActualEncoded;
+bool RightLastEncoded;
 
 int left_wheel;
 int right_wheel;
@@ -70,9 +74,15 @@ void dmpDataReady() {
 
 void setup() {
   //ENCODER
+  attachInterrupt(digitalPinToInterrupt(LeftEncoderPin),left_encoder,CHANGE);
   pinMode(LeftEncoderPin, INPUT);
-  actualEncoded = digitalRead(LeftEncoderPin);
-  lastEncoded = digitalRead(LeftEncoderPin);
+  LeftActualEncoded = digitalRead(LeftEncoderPin);
+  LeftLastEncoded = digitalRead(LeftEncoderPin);
+  attachInterrupt(digitalPinToInterrupt(RightEncoderPin),right_encoder,CHANGE);
+  pinMode(RightEncoderPin, INPUT);
+  RightActualEncoded = digitalRead(RightEncoderPin);
+  RightLastEncoded = digitalRead(RightEncoderPin);
+  
 
   // join I2C bus (I2Cdev library doesn't do this automatically)
 #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
@@ -106,6 +116,9 @@ void setup() {
   Serial.println(F("Initializing DMP..."));
   devStatus = mpu.dmpInitialize();
 
+
+  // accelerometer
+  mpu.setFullScaleAccelRange(MPU6050_ACCEL_FS_2);// by default is +-2g
   // supply your own gyro offsets here, scaled for min sensitivity
   //TODO
   mpu.setXGyroOffset(0);
@@ -149,7 +162,9 @@ void setup() {
 //// ===                    MAIN PROGRAM LOOP                     ===
 //// ================================================================
 //
+int t_start,t_stop;
 void loop() {
+  t_start = micros();
   // if programming failed, don't try to do anything
   if (!dmpReady) return;
 
@@ -184,17 +199,7 @@ void loop() {
     mpu.dmpGetLinearAccel(&aaReal, &aa, &gravity);
     mpu.dmpGetGyro(gyro, fifoBuffer);
     mpu.dmpGetLinearAccelInWorld(&aaWorld, &aaReal, &q);
-    //  LEFT ENCODER
-    actualEncoded = digitalRead(LeftEncoderPin);
-    if (actualEncoded != lastEncoded)
-    {
-      left_wheel++;
-      lastEncoded = actualEncoded;
-      arduino_msg.sensor_data.lw = 11;//left_wheel;
-    }
-    //Serial.println(encoded);
-    arduino_msg.sensor_data.rw = 12;//0; //TODO
-
+   
     //IMU
     arduino_msg.sensor_data.qx = 1;//122.35;
     arduino_msg.sensor_data.qy = 2;//q.y;
@@ -203,7 +208,7 @@ void loop() {
     arduino_msg.sensor_data.wx = 5;//gyro[0];
     arduino_msg.sensor_data.wy = 6;//gyro[1];
     arduino_msg.sensor_data.wz = 7;//gyro[2];
-    arduino_msg.sensor_data.ax = 8;//aaReal.x;
+    arduino_msg.sensor_data.ax = aaReal.x;//#include <digitalWriteFast.h>
     arduino_msg.sensor_data.ay = 9;//aaReal.y;
     arduino_msg.sensor_data.az = 10;//aaReal.z;
 
@@ -215,8 +220,40 @@ void loop() {
     blinkState = !blinkState;
     digitalWrite(LED_PIN, blinkState);
   }
+  t_stop = micros();
+  //Serial.println(t_stop-t_start);
   delay(25);
 }
+
+
+void left_encoder()
+{
+   //  LEFT ENCODER
+    LeftActualEncoded = digitalReadFast(LeftEncoderPin);
+    if (LeftActualEncoded != LeftLastEncoded)
+    {
+      left_wheel++;
+      LeftLastEncoded = LeftActualEncoded;
+      arduino_msg.sensor_data.lw = left_wheel;
+    }
+}
+
+
+void right_encoder()
+{
+   //  RIGHT ENCODER
+    RightActualEncoded = digitalReadFast(RightEncoderPin);
+    if (RightActualEncoded != RightLastEncoded)
+    {
+      right_wheel++;
+      RightLastEncoded = RightActualEncoded;
+      arduino_msg.sensor_data.rw = 12;//right_wheel;
+    }
+}
+
+
+
+
 
 //CRC-8 - algoritmo basato sulle formule di CRC-8 di Dallas/Maxim
 //codice pubblicato sotto licenza GNU GPL 3.0

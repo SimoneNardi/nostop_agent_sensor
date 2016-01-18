@@ -1,6 +1,6 @@
 ////////////////////////////////////////////////////////////
 //	Sensor_reader.h
-//	Created on:	12-jan-16
+//	Created on:	18-jan-16
 //	Original author: Niko Giovannini Alessandro Faralli
 ////////////////////////////////////////////////////////////
 #ifndef SENSOR_READER_H
@@ -51,7 +51,7 @@ namespace Robotics
 			sensor_msgs::Imu m_imu;
 			nav_msgs::Odometry m_odometry;
 			
-			int count;
+			int count,m_right_wheel_count,m_left_wheel_count;
 			
 		protected:
 			virtual void run();
@@ -60,6 +60,7 @@ namespace Robotics
 			void arduino_to_imu(arduino_data& from_arduino);
 			void arduino_to_odometry(arduino_data& from_arduino);
 			std::vector<float> encoder_to_odometry(int& left_wheel,int& right_wheel);
+			arduino_data buffer_to_struct(uint8_t buffer[]);
 			~Sensor_reader();
 		};
 
