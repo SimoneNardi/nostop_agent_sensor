@@ -3,6 +3,7 @@
 #include "sensor_msgs/Imu.h"
 #include "nav_msgs/Odometry.h"
 #include "serial/serial.h"
+#include "time.h"
 
 using namespace std;
 using namespace Robotics;
@@ -12,6 +13,13 @@ using namespace Robotics::GameTheory;
 int package_elements = 0;
 std::vector<uint8_t> data_vector;
 bool msg_start = false;
+float diameter = 6.5;
+double m_previous_time = ros::Time::now().toSec(); //toSec() vuole i double
+// ros::Time previous_time = ros::Time::now();
+// float m_previous_time =previous_time.nsec;
+int encoder_risolution = 10;
+float dx_tacca = diameter*M_PI/encoder_risolution;
+
 
 void test()
 {
@@ -160,7 +168,7 @@ void Sensor_reader::arduino_to_odometry(arduino_data& from_arduino)
       m_odometry.child_frame_id = "nome/base_link";
       m_odometry.header.frame_id = "nome/odom";
       m_odometry.header.stamp = ros::Time::now();
-      data = encoder_to_odometry(l_left_wheel,l_right_wheel);
+      data = encoder_to_odometry(l_left_wheel,l_right_wheel,diameter);
       float phi = 0;//ROLL
       float theta = 0;//PITCH
       float psi = data.at(2);
@@ -175,16 +183,37 @@ void Sensor_reader::arduino_to_odometry(arduino_data& from_arduino)
       
 }
 
-std::vector<float> Sensor_reader::encoder_to_odometry(int& left_wheel, int& right_wheel)
+std::vector<float> Sensor_reader::encoder_to_odometry(int& left_wheel, int& right_wheel, float& diameter)
 {	//TODO
-  float x,y,yaw,x_dot,yaw_dot; // what ekf want
+  float x, x_lw,x_rw,x_medio,y,yaw,x_dot, yaw_dot; // what ekf want
+  //float x_dot_lw, x_dot_rw;
+  float dx_tacca;
+  double diff_time;
   std::vector<float> data;
-  data.push_back(0.1);
-  data.push_back(0.5);
-  data.push_back(0.3);
-  data.push_back(0.4);
-  data.push_back(0.2);
-  //...
+
+  x_lw = dx_tacca * left_wheel;
+  x_rw = dx_tacca * right_wheel;
+  yaw = (360*(x_rw-x_lw))/diameter*M_PI;
+  double l_actual_time = ros::Time::now().toSec(); //toSec() vuole i double
+//   ros::Time actual_time = ros::Time::now();
+//   float l_actual_time = actual_time.nsec;
+  diff_time = l_actual_time-m_previous_time;
+  //ros::Time diff_time = actual_time - previous_time;
+  //x_dot_lw = x_lw/diff_time;
+  //x_dot_rw = x_rw/diff_time;
+  yaw_dot = yaw/diff_time;
+  x_medio = yaw*M_PI*(diameter/2)/360;
+  x = x_medio*sin(yaw);
+  y = x_medio*cos(yaw);
+  x_dot = x/diff_time;
+  //actual_time = previous_time;
+  l_actual_time=m_previous_time;
+  
+  data.push_back(x);
+  data.push_back(y);
+  data.push_back(yaw);
+  data.push_back(x_dot);
+  data.push_back(yaw_dot);
   return data;
 }
 

@@ -59,7 +59,7 @@ namespace Robotics
 			Sensor_reader(); 
 			void arduino_to_imu(arduino_data& from_arduino);
 			void arduino_to_odometry(arduino_data& from_arduino);
-			std::vector<float> encoder_to_odometry(int& left_wheel,int& right_wheel);
+			std::vector<float> encoder_to_odometry(int& left_wheel,int& right_wheel, float& diameter);
 			arduino_data buffer_to_struct(uint8_t buffer[]);
 			~Sensor_reader();
 		};
