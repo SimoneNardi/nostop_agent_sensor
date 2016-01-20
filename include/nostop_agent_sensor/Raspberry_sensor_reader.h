@@ -10,6 +10,21 @@
 #include "ros/ros.h"
 #include "ThreadBase.h"
 
+
+#define H_BYTE_X_ACC_ADDRESS 59
+#define L_BYTE_X_ACC_ADDRESS 60
+#define H_BYTE_Y_ACC_ADDRESS 61
+#define L_BYTE_Y_ACC_ADDRESS 62
+#define H_BYTE_Z_ACC_ADDRESS 63
+#define L_BYTE_Z_ACC_ADDRESS 64
+
+#define H_BYTE_X_GYRO_ADDRESS 67
+#define L_BYTE_X_GYRO_ADDRESS 68
+#define H_BYTE_Y_GYRO_ADDRESS 69
+#define L_BYTE_Y_GYRO_ADDRESS 70
+#define H_BYTE_Z_GYRO_ADDRESS 71
+#define L_BYTE_Z_GYRO_ADDRESS 72
+
 namespace Robotics 
 {
 	namespace GameTheory
@@ -20,9 +35,9 @@ namespace Robotics
 		public:
 			Mutex m_mutex;
 			ros::NodeHandle reader;
-			char m_address = 0x75; // MPU6050.h ( RA_WHO_AM_I )
+			char m_address;
 			char m_buf[1];
-			char m_addr[2];
+			char m_regaddr[2];
 			int m_value;
 			int m_ret;
 			

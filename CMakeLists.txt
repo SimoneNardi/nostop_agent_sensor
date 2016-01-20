@@ -96,10 +96,8 @@ add_dependencies(agent_sensor nostop_agent_sensor_gencpp)
 target_link_libraries(agent_sensor ${catkin_LIBRARIES} ${OpenCV_LIBS} base_math)
 
 set(raspberry_agent_sensor_SOURCES
-# 	src/raspberry_agent_sensor.cpp
+	src/raspberry_agent_sensor.cpp
 	src/Raspberry_sensor_reader.cpp
-	src/test3.cpp
-
 )
 
 add_executable(raspberry_agent_sensor ${raspberry_agent_sensor_SOURCES})
