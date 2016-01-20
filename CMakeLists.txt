@@ -99,21 +99,12 @@ set(raspberry_agent_sensor_SOURCES
 # 	src/raspberry_agent_sensor.cpp
 	src/Raspberry_sensor_reader.cpp
 	src/test3.cpp
-	#src/test2.cpp
+
 )
 
 add_executable(raspberry_agent_sensor ${raspberry_agent_sensor_SOURCES})
 add_dependencies(raspberry_agent_sensor nostop_agent_sensor_gencpp)
 target_link_libraries(raspberry_agent_sensor ${catkin_LIBRARIES} ${OpenCV_LIBS} base_math bcm2835 )
-
-# 
-# set(test_SOURCES
-# 	src/test.cpp
-# )
-# add_executable(test ${test_SOURCES})
-# add_dependencies(test nostop_agent_sensor_gencpp)
-# target_link_libraries(test ${catkin_LIBRARIES} ${OpenCV_LIBS} base_math bcm2835)
-
 
 
 #############
@@ -131,12 +122,6 @@ target_link_libraries(raspberry_agent_sensor ${catkin_LIBRARIES} ${OpenCV_LIBS} 
  EXPORT nostop_agent_sensor
    RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
  )
-# 
-   ## Mark executables and/or libraries for installation
-#  install(TARGETS test3
-#  EXPORT nostop_agent_sensor
-#    RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-#  )
 
  
  

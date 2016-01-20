@@ -14,6 +14,7 @@
 #include <nav_msgs/Odometry.h>
 
 #define message_size 50
+
 namespace Robotics 
 {
 	namespace GameTheory
@@ -50,7 +51,9 @@ namespace Robotics
 			serial::Serial m_serial_port;
 			sensor_msgs::Imu m_imu;
 			nav_msgs::Odometry m_odometry;
-			
+			double m_previous_time;
+			int m_encoder_risolution;
+			float m_wheel_diameter,m_step_length;
 			int count,m_right_wheel_count,m_left_wheel_count;
 			
 		protected:

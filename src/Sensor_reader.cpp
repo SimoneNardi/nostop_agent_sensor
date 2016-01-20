@@ -13,29 +13,8 @@ using namespace Robotics::GameTheory;
 int package_elements = 0;
 std::vector<uint8_t> data_vector;
 bool msg_start = false;
-float diameter = 6.5;
-double m_previous_time = ros::Time::now().toSec(); //toSec() vuole i double
-// ros::Time previous_time = ros::Time::now();
-// float m_previous_time =previous_time.nsec;
-int encoder_risolution = 10;
-float dx_tacca = diameter*M_PI/encoder_risolution;
 
-
-void test()
-{
-	float f = 0.6;
-	unsigned char *pc;
-	pc = (unsigned char*)&f;
-	*(unsigned int*)&f = (pc[3] << 24) | (pc[2] << 16) | (pc[1] << 8) | (pc[0] << 0);
-	ROS_INFO("%d",pc[0]);
-	ROS_INFO("%d",pc[1]);
-	ROS_INFO("%d",pc[2]);
-	ROS_INFO("%d",pc[3]);
-	ROS_INFO("--->%f<---",f);
-}
-
-//CRC-8 - algoritmo basato sulle formule di CRC-8 di Dallas/Maxim
-//codice pubblicato sotto licenza GNU GPL 3.0
+//Dallas/Maxim based algorithm
 uint8_t CRC8(const uint8_t *data, int8_t len) {
   uint8_t crc = 0x00;
   while (len--) {
@@ -52,13 +31,16 @@ uint8_t CRC8(const uint8_t *data, int8_t len) {
   return crc;
 }
 
-
 Sensor_reader::Sensor_reader():
 count(0)
 , m_right_wheel_count(0)
 , m_left_wheel_count(0)
+, m_previous_time(ros::Time::now().toSec()) //toSec() need double)
+, m_wheel_diameter(6.5)
+, m_encoder_risolution(10)
 {
   ROS_INFO("SENSOR READER : ON");
+  m_step_length = m_wheel_diameter*M_PI/m_encoder_risolution;
   // Publish Sensor Information:
   m_reader_imu_pub = reader.advertise<sensor_msgs::Imu>("test_imu", 5);
   m_reader_odom_pub = reader.advertise<nav_msgs::Odometry>("test_odom", 5);
@@ -67,7 +49,6 @@ count(0)
      m_serial_port.setPort("/dev/ttyACM0");// arduino uno
 //     m_serial_port.setPort("/dev/ttyUSB0");// arduino duemilanove
     m_serial_port.setBaudrate(115200);
-//     m_serial_port.
     m_serial_port.open();
   } catch(std::exception& e){
     std::cerr<<"Error open serial port"<< e.what() << std::endl;
@@ -80,14 +61,15 @@ count(0)
 
 /////////////////////////////////////////////
 Sensor_reader::~Sensor_reader()
-{ m_serial_port.close();}
+{
+  m_serial_port.close();
+}
 
 
 /////////////////////////////////////////////
 void Sensor_reader::run()
 {
   while(ros::ok()){
-//     test();
      arduino_msg_union arduino_msg;
      arduino_data arduino_values;
      while ( package_elements < message_size)
@@ -121,7 +103,6 @@ void Sensor_reader::run()
 	sended_msg_checksum_value = CRC8(arduino_msg.byte_buffer,package_elements-2);
 	if(sended_msg_checksum_value == received_msg_checksum_value)
 	{
-// 		arduino_values = arduino_msg.sensor_data;
 		arduino_values = buffer_to_struct(arduino_msg.byte_buffer);
 		arduino_to_imu(arduino_values);
 		m_reader_imu_pub.publish<sensor_msgs::Imu>(m_imu);
@@ -160,15 +141,15 @@ void Sensor_reader::arduino_to_imu(arduino_data& from_arduino)
 void Sensor_reader::arduino_to_odometry(arduino_data& from_arduino)
 {
       //ODOMETRY values publish
+      // SR in ENU representation
       int l_left_wheel,l_right_wheel; 
       std::vector<float> data;
-//       ROS_INFO("%d",from_arduino.lw);
       l_left_wheel = from_arduino.lw - m_left_wheel_count;
       l_right_wheel = from_arduino.rw - m_right_wheel_count;
       m_odometry.child_frame_id = "nome/base_link";
       m_odometry.header.frame_id = "nome/odom";
       m_odometry.header.stamp = ros::Time::now();
-      data = encoder_to_odometry(l_left_wheel,l_right_wheel,diameter);
+      data = encoder_to_odometry(l_left_wheel,l_right_wheel,m_wheel_diameter);
       float phi = 0;//ROLL
       float theta = 0;//PITCH
       float psi = data.at(2);
@@ -184,32 +165,21 @@ void Sensor_reader::arduino_to_odometry(arduino_data& from_arduino)
 }
 
 std::vector<float> Sensor_reader::encoder_to_odometry(int& left_wheel, int& right_wheel, float& diameter)
-{	//TODO
+{
   float x,y,yaw,x_dot, yaw_dot; // what ekf want
   float x_lw,x_rw,x_medio;
-  //float x_dot_lw, x_dot_rw;
-  float dx_tacca;
-  double diff_time;
   std::vector<float> data;
-
-  x_lw = dx_tacca * left_wheel;
-  x_rw = dx_tacca * right_wheel;
+  x_lw = m_step_length * left_wheel;
+  x_rw = m_step_length * right_wheel;
   yaw = (360*(x_rw-x_lw))/diameter*M_PI;
-  double l_actual_time = ros::Time::now().toSec(); //toSec() vuole i double
-//   ros::Time actual_time = ros::Time::now();
-//   float l_actual_time = actual_time.nsec;
-  diff_time = l_actual_time-m_previous_time;
-  //ros::Time diff_time = actual_time - previous_time;
-  //x_dot_lw = x_lw/diff_time;
-  //x_dot_rw = x_rw/diff_time;
-  yaw_dot = yaw/diff_time;
+  double l_actual_time = ros::Time::now().toSec(); 
+  double l_time_diff = l_actual_time-m_previous_time;
+  yaw_dot = yaw/l_time_diff;
   x_medio = yaw*M_PI*(diameter/2)/360;
   x = x_medio*sin(yaw);
-  y = x_medio*cos(yaw);
-  x_dot = x/diff_time;
-  //actual_time = previous_time;
+  y = -x_medio*cos(yaw);
+  x_dot = x/l_time_diff;
   l_actual_time=m_previous_time;
-  
   data.push_back(x);
   data.push_back(y);
   data.push_back(yaw);
