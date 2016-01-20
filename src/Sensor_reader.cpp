@@ -185,7 +185,8 @@ void Sensor_reader::arduino_to_odometry(arduino_data& from_arduino)
 
 std::vector<float> Sensor_reader::encoder_to_odometry(int& left_wheel, int& right_wheel, float& diameter)
 {	//TODO
-  float x, x_lw,x_rw,x_medio,y,yaw,x_dot, yaw_dot; // what ekf want
+  float x,y,yaw,x_dot, yaw_dot; // what ekf want
+  float x_lw,x_rw,x_medio;
   //float x_dot_lw, x_dot_rw;
   float dx_tacca;
   double diff_time;
