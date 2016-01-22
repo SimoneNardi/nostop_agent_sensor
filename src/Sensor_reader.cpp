@@ -42,8 +42,8 @@ count(0)
   ROS_INFO("SENSOR READER : ON");
   m_step_length = m_wheel_diameter*M_PI/m_encoder_risolution;
   // Publish Sensor Information:
-  m_reader_imu_pub = reader.advertise<sensor_msgs::Imu>("test_imu", 5);
-  m_reader_odom_pub = reader.advertise<nav_msgs::Odometry>("test_odom", 5);
+  m_reader_imu_pub = reader.advertise<sensor_msgs::Imu>("/nome_robot/imu_data", 5);
+  m_reader_odom_pub = reader.advertise<nav_msgs::Odometry>("/nome_robot/odom", 5);
   
   try{
      m_serial_port.setPort("/dev/ttyACM0");// arduino uno
