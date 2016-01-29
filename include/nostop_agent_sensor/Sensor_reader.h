@@ -49,6 +49,7 @@ namespace Robotics
 			ros::Publisher m_reader_imu_pub;
 			ros::Publisher m_reader_odom_pub;
 			serial::Serial m_serial_port;
+			std::string m_robot_name;
 			sensor_msgs::Imu m_imu;
 			nav_msgs::Odometry m_odometry;
 			double m_previous_time;
@@ -59,7 +60,7 @@ namespace Robotics
 		protected:
 			virtual void run();
 		public:
-			Sensor_reader(); 
+			Sensor_reader(std::string& robot_name,std::string& port_name); 
 			void arduino_to_imu(arduino_data& from_arduino);
 			void arduino_to_odometry(arduino_data& from_arduino);
 			std::vector<float> encoder_to_odometry(int& left_wheel,int& right_wheel, float& diameter);

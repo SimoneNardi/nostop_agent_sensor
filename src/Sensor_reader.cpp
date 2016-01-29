@@ -31,13 +31,14 @@ uint8_t CRC8(const uint8_t *data, int8_t len) {
   return crc;
 }
 
-Sensor_reader::Sensor_reader():
+Sensor_reader::Sensor_reader(std::string& robot_name,std::string& port_name):
 count(0)
 , m_right_wheel_count(0)
 , m_left_wheel_count(0)
 , m_previous_time(ros::Time::now().toSec()) //toSec() need double)
 , m_wheel_diameter(6.5)
 , m_encoder_risolution(10)
+, m_robot_name(robot_name)
 {
   ROS_INFO("SENSOR READER : ON");
   m_step_length = m_wheel_diameter*M_PI/m_encoder_risolution;
@@ -46,7 +47,7 @@ count(0)
   m_reader_odom_pub = reader.advertise<nav_msgs::Odometry>("/nome_robot/odom", 5);
   
   try{
-     m_serial_port.setPort("/dev/ttyACM0");// arduino uno
+     m_serial_port.setPort(port_name);// arduino uno
 //     m_serial_port.setPort("/dev/ttyUSB0");// arduino duemilanove
     m_serial_port.setBaudrate(115200);
     m_serial_port.open();
@@ -123,7 +124,7 @@ void Sensor_reader::run()
 void Sensor_reader::arduino_to_imu(arduino_data& from_arduino)
 {
   // IMU values publish
-      m_imu.header.frame_id = "nome/odom";
+      m_imu.header.frame_id = m_robot_name+"/odom";
       m_imu.header.stamp = ros::Time::now();
       m_imu.orientation.x = from_arduino.qx;
       m_imu.orientation.y = from_arduino.qy;

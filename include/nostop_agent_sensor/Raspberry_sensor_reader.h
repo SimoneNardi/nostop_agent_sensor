@@ -8,6 +8,7 @@
 #pragma once
 
 #include "ros/ros.h"
+#include <sensor_msgs/Imu.h>
 #include "ThreadBase.h"
 
 
@@ -30,22 +31,30 @@ namespace Robotics
 	namespace GameTheory
 	{
 	  
-		class Raspberry_sensor_reader : public ThreadBase
+		class Raspberry_sensor_reader 
 		{
 		public:
 			Mutex m_mutex;
 			ros::NodeHandle reader;
+			std::string m_robot_name;
 			char m_address;
 			char m_buf[1];
 			char m_regaddr[2];
 			int m_value;
 			int m_ret;
+			ros::Publisher m_raspberry_reader_imu_pub;
+			sensor_msgs::Imu m_imu;
 			
-		protected:
-			virtual void run();
 		public:
-			Raspberry_sensor_reader();
+			Raspberry_sensor_reader(std::string& robot_name);
 			~Raspberry_sensor_reader();
+			void imu_reading();
+			double x_acceleration();
+			double y_acceleration();
+			double z_acceleration();
+			double x_gyro_axis();
+			double y_gyro_axis();
+			double z_gyro_axis();
 		};
 
 	}
