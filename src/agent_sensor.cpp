@@ -15,9 +15,13 @@ int main(int argc, char **argv)
   l_node.getParam("port_name",l_port);
   Sensor_reader agent_sensor_reader(l_robot_name,l_port);
   
-  agent_sensor_reader.start();
   
-  ros::spin();
+  
+  while(ros::ok())
+  {
+    agent_sensor_reader.reading();
+    ros::spinOnce();
+  }
   
   return 0;
 }

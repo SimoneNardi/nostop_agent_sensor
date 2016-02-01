@@ -1,9 +1,8 @@
-#include "ros/ros.h"
-#include "Sensor_reader.h"
-#include "sensor_msgs/Imu.h"
-#include "nav_msgs/Odometry.h"
+#include <ros/ros.h>
+#include <Sensor_reader.h>
 #include "serial/serial.h"
 #include "time.h"
+#include <bcm2835/src/bcm2835.h>
 
 using namespace std;
 using namespace Robotics;
@@ -39,12 +38,15 @@ count(0)
 , m_wheel_diameter(6.5)
 , m_encoder_risolution(10)
 , m_robot_name(robot_name)
+, m_address(0x68)// imu adress --> sudo i2cdetect -y 1
 {
   ROS_INFO("SENSOR READER : ON");
-  m_step_length = m_wheel_diameter*M_PI/m_encoder_risolution;
-  // Publish Sensor Information:
-  m_reader_imu_pub = reader.advertise<sensor_msgs::Imu>("/nome_robot/imu_data", 5);
-  m_reader_odom_pub = reader.advertise<nav_msgs::Odometry>("/nome_robot/odom", 5);
+	bcm2835_init();
+	bcm2835_i2c_setSlaveAddress(m_address);
+	m_step_length = m_wheel_diameter*M_PI/m_encoder_risolution;
+	// Publish Sensor Information:
+	m_reader_odom_pub = reader.advertise<nav_msgs::Odometry>("/"+m_robot_name+"/odom", 5);
+	m_reader_imu_pub = reader.advertise<sensor_msgs::Imu>("/"+m_robot_name+"/imu_data", 5);
   
   try{
      m_serial_port.setPort(port_name);// arduino uno
@@ -64,79 +66,10 @@ count(0)
 Sensor_reader::~Sensor_reader()
 {
   m_serial_port.close();
+   bcm2835_i2c_end();
 }
 
 
-/////////////////////////////////////////////
-void Sensor_reader::run()
-{
-  while(ros::ok()){
-     arduino_msg_union arduino_msg;
-     arduino_data arduino_values;
-     while ( package_elements < message_size)
-     { 
-       unsigned char single_read_byte;
-       size_t size;
-       int size_int;
-       size = m_serial_port.read(&single_read_byte,1);
-       size_int = size;
-       if (size == 1)
-       {
-		if(single_read_byte == 90 && msg_start == false )
-		{
-			msg_start = true;
-		}
-		if (msg_start)
-		{
-			data_vector.push_back(single_read_byte);
-			package_elements = package_elements + 1;
-		}
-       }
-     }
-     if (package_elements == message_size)
-     {		
-		for(int i = 0 ;i<package_elements-1;i++)
-		{	
-			arduino_msg.byte_buffer[i] = data_vector[i];
-		}
-	uint8_t sended_msg_checksum_value, received_msg_checksum_value;
-	received_msg_checksum_value = data_vector[package_elements-1];
-	sended_msg_checksum_value = CRC8(arduino_msg.byte_buffer,package_elements-2);
-	if(sended_msg_checksum_value == received_msg_checksum_value)
-	{
-		arduino_values = buffer_to_struct(arduino_msg.byte_buffer);
-		arduino_to_imu(arduino_values);
-		m_reader_imu_pub.publish<sensor_msgs::Imu>(m_imu);
-		arduino_to_odometry(arduino_values);
-		m_reader_odom_pub.publish<nav_msgs::Odometry>(m_odometry);
-		msg_start = false;
-		package_elements = 0;
-		data_vector.clear();
-	}else{
-		msg_start = false;
-		package_elements = 0;
-		data_vector.clear();
-		ROS_ERROR("Invalid package");
-	}
-    }    
-  }
-}
-void Sensor_reader::arduino_to_imu(arduino_data& from_arduino)
-{
-  // IMU values publish
-      m_imu.header.frame_id = m_robot_name+"/odom";
-      m_imu.header.stamp = ros::Time::now();
-      m_imu.orientation.x = from_arduino.qx;
-      m_imu.orientation.y = from_arduino.qy;
-      m_imu.orientation.z = from_arduino.qz;
-      m_imu.orientation.w = from_arduino.qw;
-      m_imu.linear_acceleration.x = from_arduino.ax/8192;
-      m_imu.linear_acceleration.y = from_arduino.ay/8192;
-      m_imu.linear_acceleration.z = from_arduino.az/8192;
-      m_imu.angular_velocity.x = from_arduino.wx;
-      m_imu.angular_velocity.y = from_arduino.wy;
-      m_imu.angular_velocity.z = from_arduino.wz;
-}
 
 
 void Sensor_reader::arduino_to_odometry(arduino_data& from_arduino)
@@ -165,6 +98,26 @@ void Sensor_reader::arduino_to_odometry(arduino_data& from_arduino)
       
 }
 
+
+
+
+arduino_data Sensor_reader::buffer_to_struct(uint8_t byte_buffer[message_size])
+{
+	float qx,qy,qz,qw,ax,ay,az,wx,wy,wz;
+	int lw,rw;
+	arduino_data arduino_values;
+	*(unsigned int*)&lw = (byte_buffer[44] << 24) | (byte_buffer[43] << 16) | (byte_buffer[42] << 8) | (byte_buffer[41] << 0);
+	*(unsigned int*)&rw = (byte_buffer[48] << 24) | (byte_buffer[47] << 16) | (byte_buffer[46] << 8) | (byte_buffer[45] << 0);
+	arduino_values.lw = lw;
+	arduino_values.rw = rw;
+//	ROS_INFO("lw --> %d",arduino_values.lw);
+//	ROS_INFO("rw --> %d",arduino_values.rw);
+	return arduino_values;
+}
+
+
+
+
 std::vector<float> Sensor_reader::encoder_to_odometry(int& left_wheel, int& right_wheel, float& diameter)
 {
   float x,y,yaw,x_dot, yaw_dot; // what ekf want
@@ -191,46 +144,295 @@ std::vector<float> Sensor_reader::encoder_to_odometry(int& left_wheel, int& righ
 
 
 
-arduino_data Sensor_reader::buffer_to_struct(uint8_t byte_buffer[message_size])
+
+void Sensor_reader::imu_reading()
 {
-	float qx,qy,qz,qw,ax,ay,az,wx,wy,wz;
-	int lw,rw;
-	arduino_data arduino_values;
-	*(unsigned int*)&qx = (byte_buffer[4] << 24) | (byte_buffer[3] << 16) | (byte_buffer[2] << 8) | (byte_buffer[1] << 0);
-	*(unsigned int*)&qy = (byte_buffer[8] << 24) | (byte_buffer[7] << 16) | (byte_buffer[6] << 8) | (byte_buffer[5] << 0);
-	*(unsigned int*)&qz = (byte_buffer[12] << 24) | (byte_buffer[11] << 16) | (byte_buffer[10] << 8) | (byte_buffer[9] << 0);
-	*(unsigned int*)&qw = (byte_buffer[16] << 24) | (byte_buffer[15] << 16) | (byte_buffer[14] << 8) | (byte_buffer[13] << 0);
-	*(unsigned int*)&ax = (byte_buffer[20] << 24) | (byte_buffer[19] << 16) | (byte_buffer[18] << 8) | (byte_buffer[17] << 0);
-	*(unsigned int*)&ay = (byte_buffer[24] << 24) | (byte_buffer[23] << 16) | (byte_buffer[22] << 8) | (byte_buffer[21] << 0);
-	*(unsigned int*)&az = (byte_buffer[28] << 24) | (byte_buffer[27] << 16) | (byte_buffer[26] << 8) | (byte_buffer[25] << 0);
-	*(unsigned int*)&wx = (byte_buffer[32] << 24) | (byte_buffer[31] << 16) | (byte_buffer[30] << 8) | (byte_buffer[29] << 0);
-	*(unsigned int*)&wy = (byte_buffer[36] << 24) | (byte_buffer[35] << 16) | (byte_buffer[34] << 8) | (byte_buffer[33] << 0);
-	*(unsigned int*)&wz = (byte_buffer[40] << 24) | (byte_buffer[39] << 16) | (byte_buffer[38] << 8) | (byte_buffer[37] << 0);
-	*(unsigned int*)&lw = (byte_buffer[44] << 24) | (byte_buffer[43] << 16) | (byte_buffer[42] << 8) | (byte_buffer[41] << 0);
-	*(unsigned int*)&rw = (byte_buffer[48] << 24) | (byte_buffer[47] << 16) | (byte_buffer[46] << 8) | (byte_buffer[45] << 0);
-	arduino_values.ax = ax;
-	arduino_values.ay = ay;
-	arduino_values.az = az;
-	arduino_values.qx = qx;
-	arduino_values.qy = qy;
-	arduino_values.qz = qz;
-	arduino_values.qw = qw;
-	arduino_values.lw = lw;
-	arduino_values.rw = rw;
-	arduino_values.wx = wx;
-	arduino_values.wy = wy;
-	arduino_values.wz = wz;
-//	ROS_INFO("qx --> %f",arduino_values.qx);
-//	ROS_INFO("qy --> %f",arduino_values.qy);
-//	ROS_INFO("qz --> %f",arduino_values.qz);
-//	ROS_INFO("qw --> %f",arduino_values.qw);
-//	ROS_INFO("ax --> %f",arduino_values.ax);
-//	ROS_INFO("ay --> %f",arduino_values.ay);
-//	ROS_INFO("az --> %f",arduino_values.az);
-//	ROS_INFO("lw --> %d",arduino_values.lw);
-//	ROS_INFO("rw --> %d",arduino_values.rw);
-//	ROS_INFO("wx --> %f",arduino_values.wx);
-//	ROS_INFO("wy --> %f",arduino_values.wy);
-//	ROS_INFO("wz --> %f",arduino_values.wz);
-	return arduino_values;
+	double x_acc,y_acc,z_acc,wx_acc,wy_acc,wz_acc;
+	bcm2835_i2c_begin();
+	m_regaddr[0] = 107; // register address
+	m_regaddr[1] = 0; // value
+	//disable sleep mode
+	bcm2835_i2c_write(m_regaddr, 2);//where and how many bytes
+	// READ ACCELERATION VALUES
+	x_acc = x_acceleration();
+	y_acc = y_acceleration();
+	z_acc = z_acceleration();
+	// ACC TO m/s^2
+	x_acc = x_acc / 16384;
+	y_acc = y_acc / 16384;
+	z_acc = z_acc / 16384;
+	
+	
+	// READ GYROSCOPE VALUES
+	wx_acc = x_gyro_axis();
+	wy_acc = y_gyro_axis();
+	wz_acc = z_gyro_axis();
+	
+	// COMPOSE IMU MSG
+	m_imu.linear_acceleration.x = x_acc;
+	m_imu.linear_acceleration.y = y_acc;
+	m_imu.linear_acceleration.z = z_acc;
+	m_imu.angular_velocity.x = wx_acc;
+	m_imu.angular_velocity.y = wy_acc;
+	m_imu.angular_velocity.z = wz_acc;
+	m_imu.header.frame_id = m_robot_name+"/odom";
+	// TODO orientation
+	m_reader_imu_pub.publish<sensor_msgs::Imu>(m_imu);
+	bcm2835_i2c_end();
 }
+
+
+
+
+////////////////////////////////////////////
+void Sensor_reader::reading()
+{
+	arduino_msg_union arduino_msg;
+	arduino_data arduino_values;
+	while ( package_elements < message_size)
+	{ 
+		unsigned char single_read_byte;
+		size_t size;
+		int size_int;
+		size = m_serial_port.read(&single_read_byte,1);
+		size_int = size;
+		if (size == 1)
+		{
+			if(single_read_byte == 90 && msg_start == false )
+			{
+				msg_start = true;
+			}
+			if (msg_start)
+			{
+				data_vector.push_back(single_read_byte);
+				package_elements = package_elements + 1;
+			}
+		}
+	}
+	if (package_elements == message_size)
+	{
+		for(int i = 0 ;i<package_elements-1;i++)
+		{
+			arduino_msg.byte_buffer[i] = data_vector[i];
+		}
+	uint8_t sended_msg_checksum_value, received_msg_checksum_value;
+	received_msg_checksum_value = data_vector[package_elements-1];
+	sended_msg_checksum_value = CRC8(arduino_msg.byte_buffer,package_elements-2);
+	if(sended_msg_checksum_value == received_msg_checksum_value)
+	{
+		arduino_values = buffer_to_struct(arduino_msg.byte_buffer);
+		arduino_to_odometry(arduino_values);
+		m_reader_odom_pub.publish<nav_msgs::Odometry>(m_odometry);
+		msg_start = false;
+		package_elements = 0;
+		data_vector.clear();
+	}else{
+		msg_start = false;
+		package_elements = 0;
+		data_vector.clear();
+		ROS_ERROR("Invalid package");
+	      }
+	}    
+	imu_reading();
+}
+
+
+
+double Sensor_reader::x_acceleration()
+{
+	int acc_x;
+	m_regaddr[0] = H_BYTE_X_ACC_ADDRESS;//x-axis acc value (first byte)
+	m_ret = BCM2835_I2C_REASON_ERROR_DATA;
+	while(m_ret != BCM2835_I2C_REASON_OK)
+	{
+		//This is the basic operation to read an register
+		//m_regaddr[0] is the register address
+		//m_buf[0] is the value
+		bcm2835_i2c_write(m_regaddr, 1);
+		m_ret = bcm2835_i2c_read(m_buf, 1);//where and how many bytes
+	}
+	acc_x = m_buf[0]<<8;
+	m_regaddr[0] = L_BYTE_X_ACC_ADDRESS;//x-axis acc value (second-byte)
+	m_ret = BCM2835_I2C_REASON_ERROR_DATA;
+	while(m_buf[0] == 99)//WHY??
+	{
+		bcm2835_i2c_write(m_regaddr, 1);
+		m_ret = bcm2835_i2c_read(m_buf, 1);
+	}
+	acc_x += m_buf[0];
+	//because of the sign, we have here 32-bit integers,
+	//the value is 16-bit signed.
+	if (acc_x & 1<<15)
+	{
+	    acc_x -= 1<<16;
+	}
+	return acc_x;
+}
+
+
+
+double Sensor_reader::y_acceleration()
+{
+	int acc_y;
+	m_regaddr[0] = H_BYTE_Y_ACC_ADDRESS;//y-axis acc value (first byte)
+	m_ret = BCM2835_I2C_REASON_ERROR_DATA;
+	while(m_ret != BCM2835_I2C_REASON_OK)
+	{
+		//This is the basic operation to read an register
+		//m_regaddr[0] is the register address
+		//m_buf[0] is the value
+		bcm2835_i2c_write(m_regaddr, 1);
+		m_ret = bcm2835_i2c_read(m_buf, 1);//where and how many bytes
+	}
+	acc_y = m_buf[0]<<8;
+	m_regaddr[0] = L_BYTE_Y_ACC_ADDRESS;//y-axis acc value (second-byte)
+	m_ret = BCM2835_I2C_REASON_ERROR_DATA;
+	while(m_buf[0] == 99)//WHY??
+	{
+		bcm2835_i2c_write(m_regaddr, 1);
+		m_ret = bcm2835_i2c_read(m_buf, 1);
+	}
+	acc_y += m_buf[0];
+	//because of the sign, we have here 32-bit integers,
+	//the value is 16-bit signed.
+	if (acc_y & 1<<15)
+	{
+	    acc_y -= 1<<16;
+	}
+	return acc_y;
+}
+
+
+
+double Sensor_reader::z_acceleration()
+{
+	int acc_z;
+	m_regaddr[0] = H_BYTE_Z_ACC_ADDRESS;//z-axis acc value (first byte)
+	m_ret = BCM2835_I2C_REASON_ERROR_DATA;
+	while(m_ret != BCM2835_I2C_REASON_OK)
+	{
+		//This is the basic operation to read an register
+		//m_regaddr[0] is the register address
+		//m_buf[0] is the value
+		bcm2835_i2c_write(m_regaddr, 1);
+		m_ret = bcm2835_i2c_read(m_buf, 1);//where and how many bytes
+	}
+	acc_z = m_buf[0]<<8;
+	m_regaddr[0] = L_BYTE_Z_ACC_ADDRESS;//z-axis acc value (second-byte)
+	m_ret = BCM2835_I2C_REASON_ERROR_DATA;
+	while(m_buf[0] == 99)//WHY??
+	{
+		bcm2835_i2c_write(m_regaddr, 1);
+		m_ret = bcm2835_i2c_read(m_buf, 1);
+	}
+	acc_z += m_buf[0];
+	//because of the sign, we have here 32-bit integers,
+	//the value is 16-bit signed.
+	if (acc_z & 1<<15)
+	{
+	    acc_z -= 1<<16;
+	}
+	return acc_z;
+}
+
+
+
+double Sensor_reader::x_gyro_axis()
+{
+	int w_x;
+	m_regaddr[0] = H_BYTE_X_GYRO_ADDRESS;//x_axis gyroscope values (first byte)
+	m_ret = BCM2835_I2C_REASON_ERROR_DATA;
+	while(m_ret != BCM2835_I2C_REASON_OK)
+	{
+		//This is the basic operation to read an register
+		//m_regaddr[0] is the register address
+		//m_buf[0] is the value
+		bcm2835_i2c_write(m_regaddr, 1);
+		m_ret = bcm2835_i2c_read(m_buf, 1);//where and how many bytes
+	}
+	w_x = m_buf[0]<<8;
+	m_regaddr[0] = L_BYTE_X_GYRO_ADDRESS;//x_axis gyroscope values (second-byte)
+	m_ret = BCM2835_I2C_REASON_ERROR_DATA;
+	while(m_buf[0] == 99)//WHY??
+	{
+		bcm2835_i2c_write(m_regaddr, 1);
+		m_ret = bcm2835_i2c_read(m_buf, 1);
+	}
+	w_x += m_buf[0];
+	//because of the sign, we have here 32-bit integers,
+	//the value is 16-bit signed.
+	if (w_x & 1<<15)
+	{
+	    w_x -= 1<<16;
+	}
+	return w_x;
+}
+
+
+
+double Sensor_reader::y_gyro_axis()
+{
+	int w_y;
+	m_regaddr[0] = H_BYTE_Y_GYRO_ADDRESS;//y_axis gyroscope values (first byte)
+	m_ret = BCM2835_I2C_REASON_ERROR_DATA;
+	while(m_ret != BCM2835_I2C_REASON_OK)
+	{
+		//This is the basic operation to read an register
+		//m_regaddr[0] is the register address
+		//m_buf[0] is the value
+		bcm2835_i2c_write(m_regaddr, 1);
+		m_ret = bcm2835_i2c_read(m_buf, 1);//where and how many bytes
+	}
+	w_y = m_buf[0]<<8;
+	m_regaddr[0] = L_BYTE_Y_GYRO_ADDRESS;//y_axis gyroscope values (second-byte)
+	m_ret = BCM2835_I2C_REASON_ERROR_DATA;
+	while(m_buf[0] == 99)//WHY??
+	{
+		bcm2835_i2c_write(m_regaddr, 1);
+		m_ret = bcm2835_i2c_read(m_buf, 1);
+	}
+	w_y += m_buf[0];
+	//because of the sign, we have here 32-bit integers,
+	//the value is 16-bit signed.
+	if (w_y & 1<<15)
+	{
+	    w_y -= 1<<16;
+	}
+	return w_y;
+}
+
+
+
+double Sensor_reader::z_gyro_axis()
+{
+	int w_z;
+	m_regaddr[0] = H_BYTE_Z_GYRO_ADDRESS;//z_axis gyroscope values (first byte)
+	m_ret = BCM2835_I2C_REASON_ERROR_DATA;
+	while(m_ret != BCM2835_I2C_REASON_OK)
+	{
+		//This is the basic operation to read an register
+		//m_regaddr[0] is the register address
+		//m_buf[0] is the value
+		bcm2835_i2c_write(m_regaddr, 1);
+		m_ret = bcm2835_i2c_read(m_buf, 1);//where and how many bytes
+	}
+	w_z = m_buf[0]<<8;
+	m_regaddr[0] = L_BYTE_Z_GYRO_ADDRESS;//z_axis gyroscope values (second-byte)
+	m_ret = BCM2835_I2C_REASON_ERROR_DATA;
+	while(m_buf[0] == 99)//WHY??
+	{
+		bcm2835_i2c_write(m_regaddr, 1);
+		m_ret = bcm2835_i2c_read(m_buf, 1);
+	}
+	w_z += m_buf[0];
+	//because of the sign, we have here 32-bit integers,
+	//the value is 16-bit signed.
+	if (w_z & 1<<15)
+	{
+	    w_z -= 1<<16;
+	}
+	return w_z;
+}
+
+
+

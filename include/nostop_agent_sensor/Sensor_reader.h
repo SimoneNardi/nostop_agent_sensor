@@ -8,12 +8,25 @@
 #pragma once
 
 #include "ros/ros.h"
-#include "ThreadBase.h"
 #include "serial/serial.h"
-#include <sensor_msgs/Imu.h>
 #include <nav_msgs/Odometry.h>
+#include <sensor_msgs/Imu.h>
 
-#define message_size 50
+#define message_size 10
+
+#define H_BYTE_X_ACC_ADDRESS 59
+#define L_BYTE_X_ACC_ADDRESS 60
+#define H_BYTE_Y_ACC_ADDRESS 61
+#define L_BYTE_Y_ACC_ADDRESS 62
+#define H_BYTE_Z_ACC_ADDRESS 63
+#define L_BYTE_Z_ACC_ADDRESS 64
+
+#define H_BYTE_X_GYRO_ADDRESS 67
+#define L_BYTE_X_GYRO_ADDRESS 68
+#define H_BYTE_Y_GYRO_ADDRESS 69
+#define L_BYTE_Y_GYRO_ADDRESS 70
+#define H_BYTE_Z_GYRO_ADDRESS 71
+#define L_BYTE_Z_GYRO_ADDRESS 72
 
 namespace Robotics 
 {
@@ -21,16 +34,6 @@ namespace Robotics
 	{
 	   struct arduino_data{ 
 	      uint8_t start;
-	      float qx;
-	      float qy;
-	      float qz;
-	      float qw;
-	      float ax;
-	      float ay;
-	      float az;
-	      float wx;
-	      float wy;
-	      float wz;
 	      int lw;
 	      int rw;
 	      uint8_t checksum;
@@ -41,30 +44,41 @@ namespace Robotics
 	    arduino_data sensor_data;
 	  };
 	  
-		class Sensor_reader : public ThreadBase
+		class Sensor_reader
 		{
 		public:
-			Mutex m_mutex;
+			// encoder 
 			ros::NodeHandle reader;
-			ros::Publisher m_reader_imu_pub;
 			ros::Publisher m_reader_odom_pub;
 			serial::Serial m_serial_port;
 			std::string m_robot_name;
-			sensor_msgs::Imu m_imu;
 			nav_msgs::Odometry m_odometry;
 			double m_previous_time;
 			int m_encoder_risolution;
 			float m_wheel_diameter,m_step_length;
 			int count,m_right_wheel_count,m_left_wheel_count;
-			
-		protected:
-			virtual void run();
+			// IMU
+			char m_address;
+			char m_buf[1];
+			char m_regaddr[2];
+			int m_value;
+			int m_ret;
+			ros::Publisher m_reader_imu_pub;
+			sensor_msgs::Imu m_imu;
+
 		public:
 			Sensor_reader(std::string& robot_name,std::string& port_name); 
-			void arduino_to_imu(arduino_data& from_arduino);
 			void arduino_to_odometry(arduino_data& from_arduino);
-			std::vector<float> encoder_to_odometry(int& left_wheel,int& right_wheel, float& diameter);
 			arduino_data buffer_to_struct(uint8_t buffer[]);
+			std::vector<float> encoder_to_odometry(int& left_wheel,int& right_wheel, float& diameter);
+			void imu_reading();
+			void reading();
+			double x_acceleration();
+			double y_acceleration();
+			double z_acceleration();
+			double x_gyro_axis();
+			double y_gyro_axis();
+			double z_gyro_axis();
 			~Sensor_reader();
 		};
 

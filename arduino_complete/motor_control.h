@@ -1,1 +1,0 @@
-enum direzione {AVANTI,INDIETRO};

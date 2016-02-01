@@ -9,7 +9,6 @@
 
 #include "ros/ros.h"
 #include <sensor_msgs/Imu.h>
-#include "ThreadBase.h"
 
 
 #define H_BYTE_X_ACC_ADDRESS 59
@@ -34,7 +33,6 @@ namespace Robotics
 		class Raspberry_sensor_reader 
 		{
 		public:
-			Mutex m_mutex;
 			ros::NodeHandle reader;
 			std::string m_robot_name;
 			char m_address;

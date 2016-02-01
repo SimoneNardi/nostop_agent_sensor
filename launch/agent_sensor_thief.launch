@@ -1,3 +1,6 @@
+<!-- Launch file robot sensor -->
+
+
 <launch>
     
   <node pkg="nostop_agent_sensor" type="agent_sensor" name="$(anon agent_sensor_node_thief)" required="true" output="screen">
