@@ -19,6 +19,7 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs 
   base_math
+  serial
 )
 
 # find_package( PCL 1.7.1 REQUIRED) # COMPONENT common io visualization)
@@ -92,7 +93,7 @@ set(agent_sensor_SOURCES
 
 add_executable(agent_sensor ${agent_sensor_SOURCES})
 add_dependencies(agent_sensor nostop_agent_sensor_gencpp)
-target_link_libraries(agent_sensor ${catkin_LIBRARIES} ${OpenCV_LIBS} base_math bcm2835)
+target_link_libraries(agent_sensor ${catkin_LIBRARIES} ${OpenCV_LIBS} base_math bcm2835 serial)
 
 set(raspberry_agent_sensor_SOURCES
 	src/raspberry_agent_sensor.cpp
