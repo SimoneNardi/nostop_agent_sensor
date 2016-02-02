@@ -19,7 +19,6 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs 
   base_math
-  serial
 )
 
 # find_package( PCL 1.7.1 REQUIRED) # COMPONENT common io visualization)
