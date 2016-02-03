@@ -1,6 +1,8 @@
 #include <ros/ros.h>
 #include <Sensor_reader.h>
 #include "time.h"
+#include <opencv/cvwimage.h>
+#include <opencv2/highgui/highgui.hpp>
 #include <bcm2835/src/bcm2835.h>
 
 using namespace std;
@@ -69,8 +71,6 @@ Sensor_reader::~Sensor_reader()
 }
 
 
-
-
 void Sensor_reader::arduino_to_odometry(arduino_data& from_arduino)
 {
       //ODOMETRY values publish
@@ -79,25 +79,36 @@ void Sensor_reader::arduino_to_odometry(arduino_data& from_arduino)
       std::vector<float> data;
       l_left_wheel = from_arduino.lw - m_left_wheel_count;
       l_right_wheel = from_arduino.rw - m_right_wheel_count;
-      m_odometry.child_frame_id = "nome/base_link";
-      m_odometry.header.frame_id = "nome/odom";
-      m_odometry.header.stamp = ros::Time::now();
-      data = encoder_to_odometry(l_left_wheel,l_right_wheel,m_wheel_diameter);
-      float phi = 0;//ROLL
-      float theta = 0;//PITCH
-      float psi = data.at(2);
-      m_odometry.pose.pose.position.x = data.at(0);
-      m_odometry.pose.pose.position.y = data.at(1);
-      m_odometry.pose.pose.orientation.x = cos(phi/2)*cos(theta/2)*cos(psi/2)+sin(phi/2)*sin(theta/2)*sin(psi/2); 
-      m_odometry.pose.pose.orientation.y = sin(phi/2)*cos(theta/2)*cos(psi/2)-cos(phi/2)*sin(theta/2)*sin(psi/2); 
-      m_odometry.pose.pose.orientation.z = cos(phi/2)*sin(theta/2)*cos(psi/2)+sin(phi/2)*cos(theta/2)*sin(psi/2);
-      m_odometry.pose.pose.orientation.w = cos(phi/2)*cos(theta/2)*sin(psi/2)-sin(phi/2)*sin(theta/2)*cos(psi/2);
-      m_odometry.twist.twist.linear.x = data.at(3);
-      m_odometry.twist.twist.angular.z = data.at(4);
+      m_left_wheel_count = l_left_wheel;
+      m_right_wheel_count = l_right_wheel;
+      ROS_INFO("%d,%d",l_left_wheel,l_right_wheel);
+      data = encoder_to_odometry(l_left_wheel,l_right_wheel);
+      geometry_msgs::Quaternion l_odom_quaternion = tf::createQuaternionMsgFromYaw(data.at(2));
       
+      // publish over /tf
+      m_odom_tf.header.stamp = ros::Time::now();
+      m_odom_tf.header.frame_id = m_robot_name+"/odom";
+      m_odom_tf.child_frame_id = m_robot_name+"/base_link";
+      m_odom_tf.transform.translation.x = (float)data.at(0);
+      m_odom_tf.transform.translation.y = (float)data.at(1);
+      m_odom_tf.transform.translation.z = 0.0;
+      m_odom_tf.transform.rotation = l_odom_quaternion;
+      m_odom_broadcaster.sendTransform(m_odom_tf);
+            
+      // ODOMETRY MSG
+      m_odometry.header.stamp = ros::Time::now();
+      m_odometry.child_frame_id = m_robot_name+"/base_link";
+      m_odometry.header.frame_id = m_robot_name+"/odom";
+      m_odometry.pose.pose.position.x = (float) data.at(0);
+      m_odometry.pose.pose.position.y = (float)data.at(1);
+      m_odometry.pose.pose.orientation.x = l_odom_quaternion.x;
+      m_odometry.pose.pose.orientation.y = l_odom_quaternion.y;
+      m_odometry.pose.pose.orientation.z = l_odom_quaternion.z;
+      m_odometry.pose.pose.orientation.w = l_odom_quaternion.w;
+      m_odometry.twist.twist.linear.x = (float)data.at(3);
+      m_odometry.twist.twist.angular.z = (float)data.at(4);
+    
 }
-
-
 
 
 arduino_data Sensor_reader::buffer_to_struct(uint8_t byte_buffer[message_size])
@@ -116,36 +127,37 @@ arduino_data Sensor_reader::buffer_to_struct(uint8_t byte_buffer[message_size])
 //	arduino_values= tiop.sensor_data;
 	ROS_INFO("lw --> %d",arduino_values.lw);
 	ROS_INFO("rw --> %d",arduino_values.rw);
-	ROS_INFO("byte buffer 0 --> %d",byte_buffer[0]);
-	ROS_INFO("byte buffer 1 --> %d",byte_buffer[1]);
-	ROS_INFO("byte buffer 2 --> %d",byte_buffer[2]);
-	ROS_INFO("byte buffer 3 --> %d",byte_buffer[3]);
-	ROS_INFO("byte buffer 4 --> %d",byte_buffer[4]);
-	ROS_INFO("byte buffer 5 --> %d",byte_buffer[5]);
-	ROS_INFO("byte buffer 6 --> %d",byte_buffer[6]);
-	ROS_INFO("byte buffer 7 --> %d",byte_buffer[7]);
-	ROS_INFO("byte buffer 8 --> %d",byte_buffer[8]);
+// 	ROS_INFO("byte buffer 0 --> %d",byte_buffer[0]);
+// 	ROS_INFO("byte buffer 1 --> %d",byte_buffer[1]);
+// 	ROS_INFO("byte buffer 2 --> %d",byte_buffer[2]);
+// 	ROS_INFO("byte buffer 3 --> %d",byte_buffer[3]);
+// 	ROS_INFO("byte buffer 4 --> %d",byte_buffer[4]);
+// 	ROS_INFO("byte buffer 5 --> %d",byte_buffer[5]);
+// 	ROS_INFO("byte buffer 6 --> %d",byte_buffer[6]);
+// 	ROS_INFO("byte buffer 7 --> %d",byte_buffer[7]);
+// 	ROS_INFO("byte buffer 8 --> %d",byte_buffer[8]);
 	
 	return arduino_values;
 }
 
 
-std::vector<float> Sensor_reader::encoder_to_odometry(int& left_wheel, int& right_wheel, float& diameter)
+std::vector<float> Sensor_reader::encoder_to_odometry(int& left_wheel, int& right_wheel) //TODO
 {
   float x,y,yaw,x_dot, yaw_dot; // what ekf want
   float x_lw,x_rw,x_medio;
   std::vector<float> data;
   x_lw = m_step_length * left_wheel;
   x_rw = m_step_length * right_wheel;
-  yaw = (360*(x_rw-x_lw))/diameter*M_PI;
+  yaw = (360*(x_rw-x_lw))/(m_wheel_diameter*M_PI);
+//   yaw = atan2((x_rw-x_lw),10);
   double l_actual_time = ros::Time::now().toSec(); 
   double l_time_diff = l_actual_time-m_previous_time;
   yaw_dot = yaw/l_time_diff;
-  x_medio = yaw*M_PI*(diameter/2)/360;
+  x_medio = yaw*M_PI*(m_wheel_diameter/2)/360;
   x = x_medio*sin(yaw);
   y = -x_medio*cos(yaw);
   x_dot = x/l_time_diff;
-  l_actual_time=m_previous_time;
+  m_previous_time = l_actual_time;
   data.push_back(x);
   data.push_back(y);
   data.push_back(yaw);

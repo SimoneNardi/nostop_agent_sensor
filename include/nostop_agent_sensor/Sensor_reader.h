@@ -11,9 +11,9 @@
 #include "serial/serial.h"
 #include <nav_msgs/Odometry.h>
 #include <sensor_msgs/Imu.h>
+#include <tf/transform_broadcaster.h>
 
 #define message_size 10
-
 #define H_BYTE_X_ACC_ADDRESS 59
 #define L_BYTE_X_ACC_ADDRESS 60
 #define H_BYTE_Y_ACC_ADDRESS 61
@@ -29,9 +29,10 @@
 #define L_BYTE_Z_GYRO_ADDRESS 72
 
 namespace Robotics 
-{
+{	
 	namespace GameTheory
 	{
+	  
 	   struct arduino_data{ 
 	      uint8_t start;
 	      int lw;
@@ -47,7 +48,9 @@ namespace Robotics
 		class Sensor_reader
 		{
 		public:
-			// encoder 
+			// odometry
+			tf::TransformBroadcaster m_odom_broadcaster;
+			geometry_msgs::TransformStamped m_odom_tf;
 			ros::NodeHandle reader;
 			ros::Publisher m_reader_odom_pub;
 			serial::Serial m_serial_port;
@@ -70,7 +73,7 @@ namespace Robotics
 			Sensor_reader(std::string& robot_name,std::string& port_name); 
 			void arduino_to_odometry(arduino_data& from_arduino);
 			arduino_data buffer_to_struct(uint8_t buffer[]);
-			std::vector<float> encoder_to_odometry(int& left_wheel,int& right_wheel, float& diameter);
+			std::vector<float> encoder_to_odometry(int& left_wheel,int& right_wheel);
 			void imu_reading();
 			void reading();
 			double x_acceleration();

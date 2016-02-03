@@ -20,6 +20,8 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs 
   base_math
   serial
+  tf
+  nav_msgs
 )
 
 # find_package( PCL 1.7.1 REQUIRED) # COMPONENT common io visualization)

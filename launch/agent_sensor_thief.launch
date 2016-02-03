@@ -5,7 +5,7 @@
     
   <node pkg="nostop_agent_sensor" type="agent_sensor" name="$(anon agent_sensor_node_thief)" required="true" output="screen">
     <param name="robot_name" value="$(optenv ROS_ROBOT_NAME thief)" />
-    <param name="port_name" value="$(optenv ROS_PORT_NAME /dev/ttyACM6)" />
+    <param name="port_name" value="$(optenv ROS_PORT_NAME /dev/ttyACM4)" />
   </node>
 
 </launch>
