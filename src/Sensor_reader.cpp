@@ -40,8 +40,8 @@ count(0)
 , m_address(0x68)// imu adress --> sudo i2cdetect -y 1
 {
   ROS_INFO("SENSOR READER : ON");
-	bcm2835_init();
-	bcm2835_i2c_setSlaveAddress(m_address);
+	//bcm2835_init();
+	//bcm2835_i2c_setSlaveAddress(m_address);
 	m_step_length = m_wheel_diameter*M_PI/m_encoder_risolution;
 	// Publish Sensor Information:
 	m_reader_odom_pub = reader.advertise<nav_msgs::Odometry>("/"+m_robot_name+"/odom", 5);
@@ -65,7 +65,7 @@ count(0)
 Sensor_reader::~Sensor_reader()
 {
   m_serial_port.close();
-   bcm2835_i2c_end();
+ //  bcm2835_i2c_end();
 }
 
 
@@ -102,19 +102,32 @@ void Sensor_reader::arduino_to_odometry(arduino_data& from_arduino)
 
 arduino_data Sensor_reader::buffer_to_struct(uint8_t byte_buffer[message_size])
 {
-	float qx,qy,qz,qw,ax,ay,az,wx,wy,wz;
-	int lw,rw;
+	int lw,rw,lw2,rw2;
 	arduino_data arduino_values;
-	*(unsigned int*)&lw = (byte_buffer[44] << 24) | (byte_buffer[43] << 16) | (byte_buffer[42] << 8) | (byte_buffer[41] << 0);
-	*(unsigned int*)&rw = (byte_buffer[48] << 24) | (byte_buffer[47] << 16) | (byte_buffer[46] << 8) | (byte_buffer[45] << 0);
-	arduino_values.lw = lw;
-	arduino_values.rw = rw;
-//	ROS_INFO("lw --> %d",arduino_values.lw);
-//	ROS_INFO("rw --> %d",arduino_values.rw);
+//	arduino_msg_union tiop;
+	*(unsigned int*)&lw = (byte_buffer[4] << 24) | (byte_buffer[3] << 16) | (byte_buffer[2] << 8) | (byte_buffer[1] <<0);
+ 	*(unsigned int*)&rw = (byte_buffer[8] << 24) | (byte_buffer[7] << 16) | (byte_buffer[6] << 8) | (byte_buffer[5] <<0);
+
+ 	arduino_values.lw = lw;
+ 	arduino_values.rw = rw;
+// 	for(int i = 0 ;i<message_size;i++){	  
+// 	tiop.byte_buffer[i]= byte_buffer[i];
+// 	}
+//	arduino_values= tiop.sensor_data;
+	ROS_INFO("lw --> %d",arduino_values.lw);
+	ROS_INFO("rw --> %d",arduino_values.rw);
+	ROS_INFO("byte buffer 0 --> %d",byte_buffer[0]);
+	ROS_INFO("byte buffer 1 --> %d",byte_buffer[1]);
+	ROS_INFO("byte buffer 2 --> %d",byte_buffer[2]);
+	ROS_INFO("byte buffer 3 --> %d",byte_buffer[3]);
+	ROS_INFO("byte buffer 4 --> %d",byte_buffer[4]);
+	ROS_INFO("byte buffer 5 --> %d",byte_buffer[5]);
+	ROS_INFO("byte buffer 6 --> %d",byte_buffer[6]);
+	ROS_INFO("byte buffer 7 --> %d",byte_buffer[7]);
+	ROS_INFO("byte buffer 8 --> %d",byte_buffer[8]);
+	
 	return arduino_values;
 }
-
-
 
 
 std::vector<float> Sensor_reader::encoder_to_odometry(int& left_wheel, int& right_wheel, float& diameter)
@@ -220,6 +233,7 @@ void Sensor_reader::reading()
 	if(sended_msg_checksum_value == received_msg_checksum_value)
 	{
 		arduino_values = buffer_to_struct(arduino_msg.byte_buffer);
+		ROS_INFO("SI CI SONO");
 		arduino_to_odometry(arduino_values);
 		m_reader_odom_pub.publish<nav_msgs::Odometry>(m_odometry);
 		msg_start = false;
@@ -232,7 +246,7 @@ void Sensor_reader::reading()
 		ROS_ERROR("Invalid package");
 	      }
 	}    
-	imu_reading();
+	//imu_reading();
 }
 
 
