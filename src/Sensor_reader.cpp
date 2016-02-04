@@ -40,8 +40,8 @@ count(0)
 , m_address(0x68)// imu adress --> sudo i2cdetect -y 1
 {
   ROS_INFO("SENSOR READER : ON");
-	bcm2835_init();
-	bcm2835_i2c_setSlaveAddress(m_address);
+	//bcm2835_init();
+	//bcm2835_i2c_setSlaveAddress(m_address);
 	m_step_length = m_wheel_diameter*M_PI/m_encoder_risolution;
 	// Publish Sensor Information:
 	m_reader_odom_pub = reader.advertise<nav_msgs::Odometry>("/"+m_robot_name+"/odom", 5);
@@ -65,7 +65,7 @@ count(0)
 Sensor_reader::~Sensor_reader()
 {
   m_serial_port.close();
-  bcm2835_i2c_end();
+  //bcm2835_i2c_end();
 }
 
 
@@ -125,15 +125,15 @@ arduino_data Sensor_reader::buffer_to_struct(uint8_t byte_buffer[message_size])
 //	arduino_values= tiop.sensor_data;
 	ROS_INFO("lw --> %d",arduino_values.lw);
 	ROS_INFO("rw --> %d",arduino_values.rw);
-// 	ROS_INFO("byte buffer 0 --> %d",byte_buffer[0]);
-// 	ROS_INFO("byte buffer 1 --> %d",byte_buffer[1]);
-// 	ROS_INFO("byte buffer 2 --> %d",byte_buffer[2]);
-// 	ROS_INFO("byte buffer 3 --> %d",byte_buffer[3]);
-// 	ROS_INFO("byte buffer 4 --> %d",byte_buffer[4]);
-// 	ROS_INFO("byte buffer 5 --> %d",byte_buffer[5]);
-// 	ROS_INFO("byte buffer 6 --> %d",byte_buffer[6]);
-// 	ROS_INFO("byte buffer 7 --> %d",byte_buffer[7]);
-// 	ROS_INFO("byte buffer 8 --> %d",byte_buffer[8]);
+	ROS_INFO("BYTE BUFFER 0 --> %d",byte_buffer[0]);
+ 	ROS_INFO("BYTE BUFFER 1 --> %d",byte_buffer[1]);
+ 	ROS_INFO("BYTE BUFFER 2 --> %d",byte_buffer[2]);
+ 	ROS_INFO("BYTE BUFFER 3 --> %d",byte_buffer[3]);
+	ROS_INFO("BYTE BUFFER 4 --> %d",byte_buffer[4]);
+	ROS_INFO("BYTE BUFFER 5 --> %d",byte_buffer[5]);
+	ROS_INFO("BYTE BUFFER 6 --> %d",byte_buffer[6]);
+	ROS_INFO("BYTE BUFFER 7 --> %d",byte_buffer[7]);
+ 	ROS_INFO("BYTE BUFFER 8 --> %d",byte_buffer[8]);
 	
 	return arduino_values;
 }
@@ -141,6 +141,7 @@ arduino_data Sensor_reader::buffer_to_struct(uint8_t byte_buffer[message_size])
 
 std::vector<float> Sensor_reader::encoder_to_odometry(int& left_wheel, int& right_wheel) //TODO
 {
+  Lock l_lock(m_mutex);
   float x,y,yaw,x_dot, yaw_dot; // what ekf want
   float x_lw,x_rw,x_medio;
   std::vector<float> data;
@@ -168,7 +169,8 @@ std::vector<float> Sensor_reader::encoder_to_odometry(int& left_wheel, int& righ
 
 
 void Sensor_reader::imu_reading()
-{
+{       
+        Lock l_lock(m_mutex);
 	double x_acc,y_acc,z_acc,wx_acc,wy_acc,wz_acc;
 	bcm2835_i2c_begin();
 	m_regaddr[0] = 107; // register address
@@ -209,6 +211,7 @@ void Sensor_reader::imu_reading()
 ////////////////////////////////////////////
 void Sensor_reader::reading()
 {
+	Lock l_lock(m_mutex);
 	arduino_msg_union arduino_msg;
 	arduino_data arduino_values;
 	while ( package_elements < message_size)
@@ -256,7 +259,8 @@ void Sensor_reader::reading()
 		ROS_ERROR("Invalid package");
 	      }
 	}    
-	imu_reading();
+	//ros::Duration(0.5).sleep();
+	//imu_reading();
 }
 
 
@@ -296,6 +300,7 @@ double Sensor_reader::x_acceleration()
 
 double Sensor_reader::y_acceleration()
 {
+        
 	int acc_y;
 	m_regaddr[0] = H_BYTE_Y_ACC_ADDRESS;//y-axis acc value (first byte)
 	m_ret = BCM2835_I2C_REASON_ERROR_DATA;

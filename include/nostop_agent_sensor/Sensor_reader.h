@@ -12,6 +12,7 @@
 #include <nav_msgs/Odometry.h>
 #include <sensor_msgs/Imu.h>
 #include <tf/transform_broadcaster.h>
+#include <Threads.h>
 
 #define message_size 10
 #define H_BYTE_X_ACC_ADDRESS 59
@@ -48,6 +49,7 @@ namespace Robotics
 		class Sensor_reader
 		{
 		public:
+		        Mutex m_mutex;
 			// odometry
 			tf::TransformBroadcaster m_odom_broadcaster;
 			geometry_msgs::TransformStamped m_odom_tf;
