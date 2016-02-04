@@ -42,8 +42,8 @@ count(0)
 , m_address(0x68)// imu adress --> sudo i2cdetect -y 1
 {
   ROS_INFO("SENSOR READER : ON");
-	//bcm2835_init();
-	//bcm2835_i2c_setSlaveAddress(m_address);
+	bcm2835_init();
+	bcm2835_i2c_setSlaveAddress(m_address);
 	m_step_length = m_wheel_diameter*M_PI/m_encoder_risolution;
 	// Publish Sensor Information:
 	m_reader_odom_pub = reader.advertise<nav_msgs::Odometry>("/"+m_robot_name+"/odom", 5);
@@ -67,7 +67,7 @@ count(0)
 Sensor_reader::~Sensor_reader()
 {
   m_serial_port.close();
- //  bcm2835_i2c_end();
+  bcm2835_i2c_end();
 }
 
 
@@ -258,7 +258,7 @@ void Sensor_reader::reading()
 		ROS_ERROR("Invalid package");
 	      }
 	}    
-	//imu_reading();
+	imu_reading();
 }
 
 
