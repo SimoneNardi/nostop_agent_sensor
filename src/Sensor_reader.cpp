@@ -1,8 +1,6 @@
 #include <ros/ros.h>
 #include <Sensor_reader.h>
 #include "time.h"
-#include <opencv/cvwimage.h>
-#include <opencv2/highgui/highgui.hpp>
 #include <bcm2835/src/bcm2835.h>
 
 using namespace std;
