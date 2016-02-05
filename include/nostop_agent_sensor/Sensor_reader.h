@@ -15,19 +15,23 @@
 #include <Threads.h>
 
 #define message_size 10
-#define H_BYTE_X_ACC_ADDRESS 59
-#define L_BYTE_X_ACC_ADDRESS 60
-#define H_BYTE_Y_ACC_ADDRESS 61
-#define L_BYTE_Y_ACC_ADDRESS 62
-#define H_BYTE_Z_ACC_ADDRESS 63
-#define L_BYTE_Z_ACC_ADDRESS 64
+//// By http://www.botched.co.uk/pic-tutorials/mpu6050-setup-data-aquisition/
+#define IMU_ADDRESS 0x68 // imu address --> sudo i2cdetect -y 1
+#include <wiringPi.h>
+#include <wiringPiI2C.h>
+#define H_BYTE_X_ACC_ADDRESS 0x3B
+#define L_BYTE_X_ACC_ADDRESS 0x3C
+#define H_BYTE_Y_ACC_ADDRESS 0x3D
+#define L_BYTE_Y_ACC_ADDRESS 0x3E
+#define H_BYTE_Z_ACC_ADDRESS 0x3F
+#define L_BYTE_Z_ACC_ADDRESS 0x40
 
-#define H_BYTE_X_GYRO_ADDRESS 67
-#define L_BYTE_X_GYRO_ADDRESS 68
-#define H_BYTE_Y_GYRO_ADDRESS 69
-#define L_BYTE_Y_GYRO_ADDRESS 70
-#define H_BYTE_Z_GYRO_ADDRESS 71
-#define L_BYTE_Z_GYRO_ADDRESS 72
+#define H_BYTE_X_GYRO_ADDRESS 0x43
+#define L_BYTE_X_GYRO_ADDRESS 0x44
+#define H_BYTE_Y_GYRO_ADDRESS 0x45
+#define L_BYTE_Y_GYRO_ADDRESS 0x46
+#define H_BYTE_Z_GYRO_ADDRESS 0x47
+#define L_BYTE_Z_GYRO_ADDRESS 0x48
 
 namespace Robotics 
 {	
@@ -67,7 +71,7 @@ namespace Robotics
 			// IMU
 			char m_address;
 			char m_buf[1];
-			char m_regaddr[2];
+			int m_reg_address;
 			int m_value;
 			int m_ret;
 			ros::Publisher m_reader_imu_pub;
@@ -80,12 +84,6 @@ namespace Robotics
 			std::vector<float> encoder_to_odometry(int& left_wheel,int& right_wheel);
 			void imu_reading();
 			void reading();
-			double x_acceleration();
-			double y_acceleration();
-			double z_acceleration();
-			double x_gyro_axis();
-			double y_gyro_axis();
-			double z_gyro_axis();
 			~Sensor_reader();
 		};
 

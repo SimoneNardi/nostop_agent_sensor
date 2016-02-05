@@ -72,7 +72,7 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package(
   INCLUDE_DIRS include/${PROJECT_NAME}/
   LIBRARIES ${PROJECT_NAME}
-  DEPENDS roscpp rospy base_math 
+  DEPENDS roscpp rospy base_math wiringPi
 )
 
 
@@ -88,6 +88,7 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR}/src)
 include_directories(${CMAKE_INSTALL_PREFIX}/include) # this line is to find lemon include files.
 include_directories(${OpenCV_INCLUDE_DIRS})
 
+
 set(agent_sensor_SOURCES
         src/agent_sensor.cpp
         src/Sensor_reader.cpp
@@ -95,7 +96,7 @@ set(agent_sensor_SOURCES
 
 add_executable(agent_sensor ${agent_sensor_SOURCES})
 add_dependencies(agent_sensor nostop_agent_sensor_gencpp)
-target_link_libraries(agent_sensor ${catkin_LIBRARIES} ${OpenCV_LIBS} base_math bcm2835 serial)
+target_link_libraries(agent_sensor ${catkin_LIBRARIES} ${OpenCV_LIBS} base_math wiringPi serial)
 
 set(raspberry_agent_sensor_SOURCES
 	src/raspberry_agent_sensor.cpp
@@ -104,7 +105,7 @@ set(raspberry_agent_sensor_SOURCES
 
 add_executable(raspberry_agent_sensor ${raspberry_agent_sensor_SOURCES})
 add_dependencies(raspberry_agent_sensor nostop_agent_sensor_gencpp)
-target_link_libraries(raspberry_agent_sensor ${catkin_LIBRARIES} ${OpenCV_LIBS} base_math bcm2835 )
+target_link_libraries(raspberry_agent_sensor ${catkin_LIBRARIES} ${OpenCV_LIBS} base_math wiringPi)
 
 
 #############
