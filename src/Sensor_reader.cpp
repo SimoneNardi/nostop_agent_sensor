@@ -207,11 +207,12 @@ void Sensor_reader::imu_reading()
 
 
 
-
 ////////////////////////////////////////////
 void Sensor_reader::reading()
 {
 	Lock l_lock(m_mutex);
+	m_serial_port.flush();
+	if(m_serial_port.waitReadable()){
 	arduino_msg_union arduino_msg;
 	arduino_data arduino_values;
 	while ( package_elements < message_size)
@@ -261,6 +262,7 @@ void Sensor_reader::reading()
 	}    
 	//ros::Duration(0.5).sleep();
 	//imu_reading();
+	}
 }
 
 

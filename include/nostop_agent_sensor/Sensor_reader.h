@@ -45,6 +45,8 @@ namespace Robotics
 	    uint8_t byte_buffer[message_size];
 	    arduino_data sensor_data;
 	  };
+	 
+	    
 	  
 		class Sensor_reader
 		{
