@@ -3,8 +3,8 @@
 //	Created on:	18-jan-16
 //	Original author: Niko Giovannini Alessandro Faralli
 ////////////////////////////////////////////////////////////
-#ifndef ROOMBA_SENSOR_READER.H
-#define ROOMBA_SENSOR_READER.H
+#ifndef ROOMBA_SENSOR_READER_H
+#define ROOMBA_SENSOR_READER_H
 #pragma once
 
 #include "ros/ros.h"
@@ -74,4 +74,4 @@ namespace Robotics
 }
 
 
-#endif // ROOMBA_SENSOR_READER.H
+#endif // ROOMBA_SENSOR_READER_H

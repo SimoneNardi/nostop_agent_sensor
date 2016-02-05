@@ -111,7 +111,7 @@ void Sensor_reader::arduino_to_odometry(arduino_data& from_arduino)
       m_odometry.pose.pose.orientation.w = l_odom_quaternion.w;
       m_odometry.twist.twist.linear.x = (float)data.at(3);
       m_odometry.twist.twist.angular.z = (float)data.at(4);
-    
+      m_reader_odom_pub.publish<nav_msgs::Odometry>(m_odometry);
 }
 
 
