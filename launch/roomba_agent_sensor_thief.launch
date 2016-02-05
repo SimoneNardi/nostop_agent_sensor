@@ -2,7 +2,7 @@
 
 <launch>
     
-  <node pkg="nostop_agent_sensor" type="raspberry_agent_sensor" name="$(anon agent_sensor_node_thief)" required="true" output="screen">
+  <node pkg="nostop_agent_sensor" type="roomba_agent_sensor" name="$(anon agent_sensor_node_thief)" required="true" output="screen">
     <param name="robot_name" value="$(optenv ROS_ROBOT_NAME thief)" />
   </node>
 

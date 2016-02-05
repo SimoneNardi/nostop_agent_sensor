@@ -98,14 +98,14 @@ add_executable(agent_sensor ${agent_sensor_SOURCES})
 add_dependencies(agent_sensor nostop_agent_sensor_gencpp)
 target_link_libraries(agent_sensor ${catkin_LIBRARIES} ${OpenCV_LIBS} base_math wiringPi serial)
 
-set(raspberry_agent_sensor_SOURCES
-	src/raspberry_agent_sensor.cpp
-	src/Raspberry_sensor_reader.cpp
+set(roomba_agent_sensor_SOURCES
+	src/roomba_agent_sensor.cpp
+	src/Roomba_sensor_reader.cpp
 )
 
-add_executable(raspberry_agent_sensor ${raspberry_agent_sensor_SOURCES})
-add_dependencies(raspberry_agent_sensor nostop_agent_sensor_gencpp)
-target_link_libraries(raspberry_agent_sensor ${catkin_LIBRARIES} ${OpenCV_LIBS} base_math wiringPi)
+add_executable(roomba_agent_sensor ${roomba_agent_sensor_SOURCES})
+add_dependencies(roomba_agent_sensor nostop_agent_sensor_gencpp)
+target_link_libraries(roomba_agent_sensor ${catkin_LIBRARIES} ${OpenCV_LIBS} base_math wiringPi)
 
 
 #############
@@ -119,7 +119,7 @@ target_link_libraries(raspberry_agent_sensor ${catkin_LIBRARIES} ${OpenCV_LIBS} 
  )
 
  ## Mark executables and/or libraries for installation
- install(TARGETS raspberry_agent_sensor
+ install(TARGETS roomba_agent_sensor
  EXPORT nostop_agent_sensor
    RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
  )

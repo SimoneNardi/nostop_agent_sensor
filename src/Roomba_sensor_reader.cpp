@@ -1,5 +1,5 @@
 #include <ros/ros.h>
-#include <Raspberry_sensor_reader.h>
+#include <Roomba_sensor_reader.h>
 #include "time.h"
 
 
@@ -13,7 +13,7 @@ int package_elements = 0;
 std::vector<uint8_t> data_vector;
 bool msg_start = false;
 
-Raspberry_sensor_reader::Raspberry_sensor_reader(std::string& robot_name):
+Roomba_sensor_reader::Roomba_sensor_reader(std::string& robot_name):
 count(0)
 , m_right_wheel_count(0)
 , m_left_wheel_count(0)
@@ -43,18 +43,18 @@ count(0)
 
 
 /////////////////////////////////////////////
-Raspberry_sensor_reader::~Raspberry_sensor_reader()
+Roomba_sensor_reader::~Roomba_sensor_reader()
 {}
 
 
-void Raspberry_sensor_reader::odometry_publish() //TODO
+void Roomba_sensor_reader::odometry_publish() //TODO
 {
 }
 
 
 
 
-void Raspberry_sensor_reader::imu_reading()
+void Roomba_sensor_reader::imu_reading()
 {       
         Lock l_lock(m_mutex);
 	short int ax,ay,az,wx,wy,wz;

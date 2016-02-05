@@ -1,10 +1,10 @@
 ////////////////////////////////////////////////////////////
-//	Raspberry_sensor_reader.h
+//	Roomba_sensor_reader.h
 //	Created on:	18-jan-16
 //	Original author: Niko Giovannini Alessandro Faralli
 ////////////////////////////////////////////////////////////
-#ifndef RASPBERRY_SENSOR_READER_H
-#define RASPBERRY_SENSOR_READER_H
+#ifndef ROOMBA_SENSOR_READER.H
+#define ROOMBA_SENSOR_READER.H
 #pragma once
 
 #include "ros/ros.h"
@@ -38,7 +38,7 @@ namespace Robotics
 	namespace GameTheory
 	{
 	  
-		class Raspberry_sensor_reader
+		class Roomba_sensor_reader
 		{
 		public:
 		        Mutex m_mutex;
@@ -64,14 +64,14 @@ namespace Robotics
 			sensor_msgs::Imu m_imu;
 
 		public:
-			Raspberry_sensor_reader(std::string& robot_name); 
+			Roomba_sensor_reader(std::string& robot_name); 
 			void odometry_publish();
 			void imu_reading();
-			~Raspberry_sensor_reader();
+			~Roomba_sensor_reader();
 		};
 
 	}
 }
 
 
-#endif // RASPBERRY_SENSOR_READER_H
+#endif // ROOMBA_SENSOR_READER.H

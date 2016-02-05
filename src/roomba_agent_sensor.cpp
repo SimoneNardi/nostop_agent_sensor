@@ -1,5 +1,5 @@
 #include "ros/ros.h"
-#include "Raspberry_sensor_reader.h"
+#include "Roomba_sensor_reader.h"
 
 using namespace std;
 using namespace Robotics;
@@ -11,12 +11,12 @@ int main(int argc, char **argv)
   std::string l_robot_name,l_port;
   ros::NodeHandle l_node("~");
   l_node.getParam("robot_name", l_robot_name);
-  Raspberry_sensor_reader raspberry_reader(l_robot_name);
+  Roomba_sensor_reader roomba_reader(l_robot_name);
 
 
     while(ros::ok())
     {
-      raspberry_reader.imu_reading();
+      roomba_reader.imu_reading();
       ros::spinOnce();
     }
   return 0;
