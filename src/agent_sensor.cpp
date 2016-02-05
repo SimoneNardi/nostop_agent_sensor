@@ -24,7 +24,7 @@ int main(int argc, char **argv)
   
   while(ros::ok())
   {
-    agent_sensor_reader.reading();
+    agent_sensor_reader.data_reading();
     ros::spinOnce();
   }
   

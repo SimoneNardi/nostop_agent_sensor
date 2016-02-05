@@ -92,7 +92,9 @@ include_directories(${OpenCV_INCLUDE_DIRS})
 set(agent_sensor_SOURCES
         src/agent_sensor.cpp
         src/Sensor_reader.cpp
+        src/My_serial_manager.cpp
 )
+
 
 add_executable(agent_sensor ${agent_sensor_SOURCES})
 add_dependencies(agent_sensor nostop_agent_sensor_gencpp)

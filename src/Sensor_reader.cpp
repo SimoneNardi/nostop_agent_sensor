@@ -8,27 +8,7 @@ using namespace std;
 using namespace Robotics;
 using namespace Robotics::GameTheory;
 
-//global variables
-int package_elements = 0;
-std::vector<uint8_t> data_vector;
-bool msg_start = false;
 
-//Dallas/Maxim based algorithm
-uint8_t CRC8(const uint8_t *data, int8_t len) {
-  uint8_t crc = 0x00;
-  while (len--) {
-    uint8_t extract = *data++;
-    for (int tempI = 8; tempI; tempI--) {
-      uint8_t sum = (crc ^ extract) & 0x01;
-      crc >>= 1;
-      if (sum) {
-        crc ^= 0x8C;
-      }
-      extract >>= 1;
-    }
-  }
-  return crc;
-}
 
 Sensor_reader::Sensor_reader(std::string& robot_name,std::string& port_name):
 count(0)
@@ -40,7 +20,7 @@ count(0)
 , m_robot_name(robot_name)
 , m_address(IMU_ADDRESS)
 {
-  ROS_INFO("SENSOR READER : ON");
+	ROS_INFO("SENSOR READER : ON");
 	m_step_length = m_wheel_diameter*M_PI/m_encoder_risolution;
 	// Publish Sensor Information:
 	m_reader_odom_pub = reader.advertise<nav_msgs::Odometry>("/"+m_robot_name+"/odom", 5);
@@ -53,28 +33,17 @@ count(0)
 	}
 	//disable sleep mode
 	wiringPiI2CWriteReg8(m_reg_address,0x6B,00);
-	try{
-		m_serial_port.setPort(port_name);// arduino uno
-	  //     m_serial_port.setPort("/dev/ttyUSB0");// arduino duemilanove
-		m_serial_port.setBaudrate(115200);
-		m_serial_port.open();
-	} catch(std::exception& e){
-		std::cerr<<"Error open serial port"<< e.what() << std::endl;
-				  }
-	data_vector.clear();
-  ROS_INFO_STREAM("Serial port opened");
-  
+ 	m_serial_manager.m_port_name = port_name.c_str();
+	m_serial_manager.initialize();
 }
 
 
 
 /////////////////////////////////////////////
 Sensor_reader::~Sensor_reader()
-{
-  m_serial_port.close();
-}
+{}
 
-
+/*
 void Sensor_reader::arduino_to_odometry(arduino_data& from_arduino)
 {
       //ODOMETRY values publish
@@ -114,62 +83,34 @@ void Sensor_reader::arduino_to_odometry(arduino_data& from_arduino)
       m_reader_odom_pub.publish<nav_msgs::Odometry>(m_odometry);
 }
 
-
-arduino_data Sensor_reader::buffer_to_struct(uint8_t byte_buffer[message_size])
-{
-	int lw,rw,lw2,rw2;
-	arduino_data arduino_values;
-//	arduino_msg_union tiop;
-	*(unsigned int*)&lw = (byte_buffer[4] << 24) | (byte_buffer[3] << 16) | (byte_buffer[2] << 8) | (byte_buffer[1] <<0);
- 	*(unsigned int*)&rw = (byte_buffer[8] << 24) | (byte_buffer[7] << 16) | (byte_buffer[6] << 8) | (byte_buffer[5] <<0);
-
- 	arduino_values.lw = lw;
- 	arduino_values.rw = rw;
-// 	for(int i = 0 ;i<message_size;i++){	  
-// 	tiop.byte_buffer[i]= byte_buffer[i];
-// 	}
-//	arduino_values= tiop.sensor_data;
-	ROS_INFO("lw --> %d",arduino_values.lw);
-	ROS_INFO("rw --> %d",arduino_values.rw);
-	ROS_INFO("BYTE BUFFER 0 --> %d",byte_buffer[0]);
- 	ROS_INFO("BYTE BUFFER 1 --> %d",byte_buffer[1]);
- 	ROS_INFO("BYTE BUFFER 2 --> %d",byte_buffer[2]);
- 	ROS_INFO("BYTE BUFFER 3 --> %d",byte_buffer[3]);
-	ROS_INFO("BYTE BUFFER 4 --> %d",byte_buffer[4]);
-	ROS_INFO("BYTE BUFFER 5 --> %d",byte_buffer[5]);
-	ROS_INFO("BYTE BUFFER 6 --> %d",byte_buffer[6]);
-	ROS_INFO("BYTE BUFFER 7 --> %d",byte_buffer[7]);
- 	ROS_INFO("BYTE BUFFER 8 --> %d",byte_buffer[8]);
-	
-	return arduino_values;
-}
+*/
 
 
-std::vector<float> Sensor_reader::encoder_to_odometry(int& left_wheel, int& right_wheel) //TODO
-{
-  Lock l_lock(m_mutex);
-  float x,y,yaw,x_dot, yaw_dot; // what ekf want
-  float x_lw,x_rw,x_medio;
-  std::vector<float> data;
-  x_lw = m_step_length * left_wheel;
-  x_rw = m_step_length * right_wheel;
-  yaw = (360*(x_rw-x_lw))/(m_wheel_diameter*M_PI);
-//   yaw = atan2((x_rw-x_lw),10);
-  double l_actual_time = ros::Time::now().toSec(); 
-  double l_time_diff = l_actual_time-m_previous_time;
-  yaw_dot = yaw/l_time_diff;
-  x_medio = yaw*M_PI*(m_wheel_diameter/2)/360;
-  x = x_medio*sin(yaw);
-  y = -x_medio*cos(yaw);
-  x_dot = x/l_time_diff;
-  m_previous_time = l_actual_time;
-  data.push_back(x);
-  data.push_back(y);
-  data.push_back(yaw);
-  data.push_back(x_dot);
-  data.push_back(yaw_dot);
-  return data;
-}
+// std::vector<float> Sensor_reader::encoder_to_odometry(int& left_wheel, int& right_wheel) //TODO
+// {
+//   Lock l_lock(m_mutex);
+//   float x,y,yaw,x_dot, yaw_dot; // what ekf want
+//   float x_lw,x_rw,x_medio;
+//   std::vector<float> data;
+//   x_lw = m_step_length * left_wheel;
+//   x_rw = m_step_length * right_wheel;
+//   yaw = (360*(x_rw-x_lw))/(m_wheel_diameter*M_PI);
+// //   yaw = atan2((x_rw-x_lw),10);
+//   double l_actual_time = ros::Time::now().toSec(); 
+//   double l_time_diff = l_actual_time-m_previous_time;
+//   yaw_dot = yaw/l_time_diff;
+//   x_medio = yaw*M_PI*(m_wheel_diameter/2)/360;
+//   x = x_medio*sin(yaw);
+//   y = -x_medio*cos(yaw);
+//   x_dot = x/l_time_diff;
+//   m_previous_time = l_actual_time;
+//   data.push_back(x);
+//   data.push_back(y);
+//   data.push_back(yaw);
+//   data.push_back(x_dot);
+//   data.push_back(yaw_dot);
+//   return data;
+// }
 
 
 
@@ -202,60 +143,10 @@ void Sensor_reader::imu_reading()
 
 
 ////////////////////////////////////////////
-void Sensor_reader::reading()
+void Sensor_reader::data_reading()
 {
-	Lock l_lock(m_mutex);
-	m_serial_port.flush();
-	if(m_serial_port.waitReadable()){
-	arduino_msg_union arduino_msg;
-	arduino_data arduino_values;
-	while ( package_elements < message_size)
-	{ 
-		unsigned char single_read_byte;
-		size_t size;
-		int size_int;
-		size = m_serial_port.read(&single_read_byte,1);
-		size_int = size;
-		if (size == 1)
-		{
-			if(single_read_byte == 90 && msg_start == false )
-			{
-				msg_start = true;
-			}
-			if (msg_start)
-			{
-				data_vector.push_back(single_read_byte);
-				package_elements = package_elements + 1;
-			}
-		}
-	}
-	if (package_elements == message_size)
-	{
-		for(int i = 0 ;i<package_elements-1;i++)
-		{
-			arduino_msg.byte_buffer[i] = data_vector[i];
-		}
-	uint8_t sended_msg_checksum_value, received_msg_checksum_value;
-	received_msg_checksum_value = data_vector[package_elements-1];
-	sended_msg_checksum_value = CRC8(arduino_msg.byte_buffer,package_elements-2);
-	if(sended_msg_checksum_value == received_msg_checksum_value)
-	{
-		arduino_values = buffer_to_struct(arduino_msg.byte_buffer);
-		ROS_INFO("SI CI SONO");
-		arduino_to_odometry(arduino_values);
-		m_reader_odom_pub.publish<nav_msgs::Odometry>(m_odometry);
-		msg_start = false;
-		package_elements = 0;
-		data_vector.clear();
-	}else{
-		msg_start = false;
-		package_elements = 0;
-		data_vector.clear();
-		ROS_ERROR("Invalid package");
-	      }
-	}    
-	}
-	imu_reading();
+  imu_reading();
+  
 }
 
 
