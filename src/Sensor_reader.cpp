@@ -10,7 +10,7 @@ using namespace Robotics::GameTheory;
 
 
 
-Sensor_reader::Sensor_reader(std::string& robot_name,std::string& port_name):
+Sensor_reader::Sensor_reader(std::string& robot_name):
 count(0)
 , m_right_wheel_count(0)
 , m_left_wheel_count(0)
@@ -25,6 +25,7 @@ count(0)
 	// Publish Sensor Information:
 	m_reader_odom_pub = reader.advertise<nav_msgs::Odometry>("/"+m_robot_name+"/odom", 5);
 	m_reader_imu_pub = reader.advertise<sensor_msgs::Imu>("/"+m_robot_name+"/imu_data", 5);
+	m_reader_encoder_data = reader.subscribe<std_msgs::Int32MultiArray>("/"+m_robot_name+"encoder_data",5,&Sensor_reader::encoder_data_in,this);
 	wiringPiSetup();
 	try{
 	    m_reg_address = wiringPiI2CSetup(m_address);
@@ -33,8 +34,6 @@ count(0)
 	}
 	//disable sleep mode
 	wiringPiI2CWriteReg8(m_reg_address,0x6B,00);
- 	m_serial_manager.m_port_name = port_name.c_str();
-	m_serial_manager.initialize();
 }
 
 
@@ -43,20 +42,84 @@ count(0)
 Sensor_reader::~Sensor_reader()
 {}
 
-/*
-void Sensor_reader::arduino_to_odometry(arduino_data& from_arduino)
+
+
+
+void Sensor_reader::encoder_data_in(const std_msgs::Int32MultiArray::ConstPtr& msg)
+{	
+  Lock l_lock(m_mutex);
+  m_left_wheel_count = msg->data.at(0);
+  m_right_wheel_count = msg->data.at(1);
+}
+
+
+
+std::vector<float> Sensor_reader::encoder_to_odometry() //TODO
 {
-      //ODOMETRY values publish
-      // SR in ENU representation
-      int l_left_wheel,l_right_wheel; 
-      std::vector<float> data;
-      l_left_wheel = from_arduino.lw - m_left_wheel_count;
-      l_right_wheel = from_arduino.rw - m_right_wheel_count;
-      m_left_wheel_count = l_left_wheel;
-      m_right_wheel_count = l_right_wheel;
-      ROS_INFO("%d,%d",l_left_wheel,l_right_wheel);
-      data = encoder_to_odometry(l_left_wheel,l_right_wheel);
-      geometry_msgs::Quaternion l_odom_quaternion = tf::createQuaternionMsgFromYaw(data.at(2));
+//   float x,y,yaw,x_dot, yaw_dot; // what ekf want
+//   float x_lw,x_rw,x_medio;
+//   std::vector<float> data;
+//   x_lw = m_step_length * left_wheel;
+//   x_rw = m_step_length * right_wheel;
+//   yaw = (360*(x_rw-x_lw))/(m_wheel_diameter*M_PI);
+//   yaw = atan2((x_rw-x_lw),10);
+//   double l_actual_time = ros::Time::now().toSec(); 
+//   double l_time_diff = l_actual_time-m_previous_time;
+//   yaw_dot = yaw/l_time_diff;
+//   x_medio = yaw*M_PI*(m_wheel_diameter/2)/360;
+//   x = x_medio*sin(yaw);
+//   y = -x_medio*cos(yaw);
+//   x_dot = x/l_time_diff;
+//   m_previous_time = l_actual_time;
+//   data.push_back(x);
+//   data.push_back(y);
+//   data.push_back(yaw);
+//   data.push_back(x_dot);
+//   data.push_back(yaw_dot);
+//   return data;
+}
+
+
+
+
+void Sensor_reader::imu_reading_publish()
+{       
+	Lock l_lock(m_mutex);
+	short int ax,ay,az,wx,wy,wz;
+	ax=wiringPiI2CReadReg8(m_reg_address,H_BYTE_X_ACC_ADDRESS)<<8|wiringPiI2CReadReg8(m_reg_address,L_BYTE_X_ACC_ADDRESS);
+        ay=wiringPiI2CReadReg8(m_reg_address,H_BYTE_Y_ACC_ADDRESS)<<8|wiringPiI2CReadReg8(m_reg_address,L_BYTE_Y_ACC_ADDRESS);
+        az=wiringPiI2CReadReg8(m_reg_address,H_BYTE_Z_ACC_ADDRESS)<<8|wiringPiI2CReadReg8(m_reg_address,L_BYTE_Z_ACC_ADDRESS);
+        wx=wiringPiI2CReadReg8(m_reg_address,H_BYTE_X_GYRO_ADDRESS)<<8|wiringPiI2CReadReg8(m_reg_address,L_BYTE_X_GYRO_ADDRESS);
+        wy=wiringPiI2CReadReg8(m_reg_address,H_BYTE_Y_GYRO_ADDRESS)<<8|wiringPiI2CReadReg8(m_reg_address,L_BYTE_Y_GYRO_ADDRESS);
+        wz=wiringPiI2CReadReg8(m_reg_address,H_BYTE_Z_GYRO_ADDRESS)<<8|wiringPiI2CReadReg8(m_reg_address,L_BYTE_Z_GYRO_ADDRESS);
+
+	
+	// COMPOSE IMU MSG
+	m_imu.linear_acceleration.x = ax;
+	m_imu.linear_acceleration.y = ay;
+	m_imu.linear_acceleration.z = az;
+	m_imu.angular_velocity.x = wx;
+	m_imu.angular_velocity.y = wy;
+	m_imu.angular_velocity.z = wz;
+	m_imu.header.frame_id = m_robot_name+"/odom";
+	// TODO orientation
+	m_reader_imu_pub.publish<sensor_msgs::Imu>(m_imu);
+}
+
+
+void Sensor_reader::odom_imu_publishing()
+{
+  imu_reading_publish();
+  odometry_publish();
+}
+
+
+void Sensor_reader::odometry_publish()
+{
+     Lock l_lock(m_mutex);
+     std::vector<float> data;
+     data = encoder_to_odometry();
+     geometry_msgs::Quaternion l_odom_quaternion = tf::createQuaternionMsgFromYaw(data.at(2));
       
       // publish over /tf
       m_odom_tf.header.stamp = ros::Time::now();
@@ -82,71 +145,3 @@ void Sensor_reader::arduino_to_odometry(arduino_data& from_arduino)
       m_odometry.twist.twist.angular.z = (float)data.at(4);
       m_reader_odom_pub.publish<nav_msgs::Odometry>(m_odometry);
 }
-
-*/
-
-
-// std::vector<float> Sensor_reader::encoder_to_odometry(int& left_wheel, int& right_wheel) //TODO
-// {
-//   Lock l_lock(m_mutex);
-//   float x,y,yaw,x_dot, yaw_dot; // what ekf want
-//   float x_lw,x_rw,x_medio;
-//   std::vector<float> data;
-//   x_lw = m_step_length * left_wheel;
-//   x_rw = m_step_length * right_wheel;
-//   yaw = (360*(x_rw-x_lw))/(m_wheel_diameter*M_PI);
-// //   yaw = atan2((x_rw-x_lw),10);
-//   double l_actual_time = ros::Time::now().toSec(); 
-//   double l_time_diff = l_actual_time-m_previous_time;
-//   yaw_dot = yaw/l_time_diff;
-//   x_medio = yaw*M_PI*(m_wheel_diameter/2)/360;
-//   x = x_medio*sin(yaw);
-//   y = -x_medio*cos(yaw);
-//   x_dot = x/l_time_diff;
-//   m_previous_time = l_actual_time;
-//   data.push_back(x);
-//   data.push_back(y);
-//   data.push_back(yaw);
-//   data.push_back(x_dot);
-//   data.push_back(yaw_dot);
-//   return data;
-// }
-
-
-
-
-void Sensor_reader::imu_reading()
-{       
-        Lock l_lock(m_mutex);
-	short int ax,ay,az,wx,wy,wz;
-
-	ax=wiringPiI2CReadReg8(m_reg_address,H_BYTE_X_ACC_ADDRESS)<<8|wiringPiI2CReadReg8(m_reg_address,L_BYTE_X_ACC_ADDRESS);
-        ay=wiringPiI2CReadReg8(m_reg_address,H_BYTE_Y_ACC_ADDRESS)<<8|wiringPiI2CReadReg8(m_reg_address,L_BYTE_Y_ACC_ADDRESS);
-        az=wiringPiI2CReadReg8(m_reg_address,H_BYTE_Z_ACC_ADDRESS)<<8|wiringPiI2CReadReg8(m_reg_address,L_BYTE_Z_ACC_ADDRESS);
-        wx=wiringPiI2CReadReg8(m_reg_address,H_BYTE_X_GYRO_ADDRESS)<<8|wiringPiI2CReadReg8(m_reg_address,L_BYTE_X_GYRO_ADDRESS);
-        wy=wiringPiI2CReadReg8(m_reg_address,H_BYTE_Y_GYRO_ADDRESS)<<8|wiringPiI2CReadReg8(m_reg_address,L_BYTE_Y_GYRO_ADDRESS);
-        wz=wiringPiI2CReadReg8(m_reg_address,H_BYTE_Z_GYRO_ADDRESS)<<8|wiringPiI2CReadReg8(m_reg_address,L_BYTE_Z_GYRO_ADDRESS);
-
-	
-	// COMPOSE IMU MSG
-	m_imu.linear_acceleration.x = ax;
-	m_imu.linear_acceleration.y = ay;
-	m_imu.linear_acceleration.z = az;
-	m_imu.angular_velocity.x = wx;
-	m_imu.angular_velocity.y = wy;
-	m_imu.angular_velocity.z = wz;
-	m_imu.header.frame_id = m_robot_name+"/odom";
-	// TODO orientation
-	m_reader_imu_pub.publish<sensor_msgs::Imu>(m_imu);
-}
-
-
-
-////////////////////////////////////////////
-void Sensor_reader::data_reading()
-{
-  imu_reading();
-  
-}
-
-

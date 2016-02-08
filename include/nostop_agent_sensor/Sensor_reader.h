@@ -11,8 +11,8 @@
 #include <nav_msgs/Odometry.h>
 #include <sensor_msgs/Imu.h>
 #include <tf/transform_broadcaster.h>
+#include "std_msgs/Int32MultiArray.h"
 #include <Threads.h>
-#include "My_serial_manager.h"
 
 //// By http://www.botched.co.uk/pic-tutorials/mpu6050-setup-data-aquisition/
 #define IMU_ADDRESS 0x68 // imu address --> sudo i2cdetect -y 1
@@ -41,15 +41,16 @@ namespace Robotics
 		class Sensor_reader
 		{
 		public:
-		        Mutex m_mutex;
+			Mutex m_mutex;
 			// odometry
-			My_serial_manager m_serial_manager;
 			tf::TransformBroadcaster m_odom_broadcaster;
 			geometry_msgs::TransformStamped m_odom_tf;
 			ros::NodeHandle reader;
 			ros::Publisher m_reader_odom_pub;
+			ros::Subscriber m_reader_encoder_data;
 			std::string m_robot_name;
 			nav_msgs::Odometry m_odometry;
+			std::vector<int> m_encoder_data;
 			double m_previous_time;
 			int m_encoder_risolution;
 			float m_wheel_diameter,m_step_length;
@@ -63,9 +64,12 @@ namespace Robotics
 			sensor_msgs::Imu m_imu;
 
 		public:
-			Sensor_reader(std::string& robot_name,std::string& port_name); 
-			void imu_reading();
-			void data_reading();
+			Sensor_reader(std::string& robot_name); 
+			void encoder_data_in(const std_msgs::Int32MultiArray::ConstPtr& msg);
+			std::vector<float> encoder_to_odometry();
+			void imu_reading_publish();
+			void odom_imu_publishing();
+			void odometry_publish();
 			~Sensor_reader();
 		};
 

@@ -19,9 +19,9 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs 
   base_math
-  serial
   tf
   nav_msgs
+  serial
 )
 
 # find_package( PCL 1.7.1 REQUIRED) # COMPONENT common io visualization)
@@ -92,7 +92,6 @@ include_directories(${OpenCV_INCLUDE_DIRS})
 set(agent_sensor_SOURCES
         src/agent_sensor.cpp
         src/Sensor_reader.cpp
-        src/My_serial_manager.cpp
 )
 
 
@@ -107,7 +106,7 @@ set(roomba_agent_sensor_SOURCES
 
 add_executable(roomba_agent_sensor ${roomba_agent_sensor_SOURCES})
 add_dependencies(roomba_agent_sensor nostop_agent_sensor_gencpp)
-target_link_libraries(roomba_agent_sensor ${catkin_LIBRARIES} ${OpenCV_LIBS} base_math wiringPi)
+target_link_libraries(roomba_agent_sensor ${catkin_LIBRARIES} ${OpenCV_LIBS} base_math wiringPi serial)
 
 
 #############

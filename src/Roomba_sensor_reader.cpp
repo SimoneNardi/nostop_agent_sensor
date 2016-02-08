@@ -35,9 +35,7 @@ count(0)
 	  std::cerr<<"Error open IMU"<< e.what() << std::endl;
 	}
 	//disable sleep mode
-	wiringPiI2CWriteReg8(m_reg_address,0x6B,00);
-	ROS_INFO_STREAM("Serial port opened");
-  
+	wiringPiI2CWriteReg8(m_reg_address,0x6B,00); 
 }
 
 
