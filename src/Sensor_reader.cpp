@@ -8,6 +8,22 @@ using namespace std;
 using namespace Robotics;
 using namespace Robotics::GameTheory;
 
+//Dallas/Maxim based algorithm
+uint8_t CRC8(const uint8_t *data, int8_t len) {
+  uint8_t crc = 0x00;
+  while (len--) {
+    uint8_t extract = *data++;
+    for (int tempI = 8; tempI; tempI--) {
+      uint8_t sum = (crc ^ extract) & 0x01;
+      crc >>= 1;
+      if (sum) {
+        crc ^= 0x8C;
+      }
+      extract >>= 1;
+    }
+  }
+  return crc;
+}
 
 
 Sensor_reader::Sensor_reader(std::string& robot_name):
@@ -25,7 +41,7 @@ count(0)
 	// Publish Sensor Information:
 	m_reader_odom_pub = reader.advertise<nav_msgs::Odometry>("/"+m_robot_name+"/odom", 5);
 	m_reader_imu_pub = reader.advertise<sensor_msgs::Imu>("/"+m_robot_name+"/imu_data", 5);
-	m_reader_encoder_data = reader.subscribe<std_msgs::Int32MultiArray>("/"+m_robot_name+"encoder_data",5,&Sensor_reader::encoder_data_in,this);
+	m_reader_encoder_data = reader.subscribe<std_msgs::UInt8MultiArray>("/"+m_robot_name+"encoder_data",5,&Sensor_reader::encoder_data_in,this);
 	wiringPiSetup();
 	try{
 	    m_reg_address = wiringPiI2CSetup(m_address);
@@ -45,16 +61,28 @@ Sensor_reader::~Sensor_reader()
 
 
 
-void Sensor_reader::encoder_data_in(const std_msgs::Int32MultiArray::ConstPtr& msg)
+void Sensor_reader::encoder_data_in(const std_msgs::UInt8MultiArray::ConstPtr& msg)
 {	
   Lock l_lock(m_mutex);
-  m_left_wheel_count = msg->data.at(0);
-  m_right_wheel_count = msg->data.at(1);
+  arduino_msg_union l_union;
+  for(size_t i = 0 ;i<message_size;++i)
+  {
+    l_union.byte_buffer[i] = msg->data.at(i);
+  }
+  arduino_data data;
+  data = l_union.sensor_data;
+  uint8_t checksum = CRC8(l_union.byte_buffer,message_size-2);
+  if(checksum == l_union.byte_buffer[message_size-1])
+  {
+    encoder_to_odometry(data.lw,data.rw);
+  }else{
+    ROS_ERROR("Invalid package");
+  }
 }
 
 
 
-std::vector<float> Sensor_reader::encoder_to_odometry() //TODO
+std::vector<float> Sensor_reader::encoder_to_odometry(int& left_wheel,int& right_wheel) //TODO
 {
 //   float x,y,yaw,x_dot, yaw_dot; // what ekf want
 //   float x_lw,x_rw,x_medio;
@@ -107,18 +135,11 @@ void Sensor_reader::imu_reading_publish()
 }
 
 
-void Sensor_reader::odom_imu_publishing()
-{
-  imu_reading_publish();
-  odometry_publish();
-}
-
-
 void Sensor_reader::odometry_publish()
 {
      Lock l_lock(m_mutex);
      std::vector<float> data;
-     data = encoder_to_odometry();
+     //data = encoder_to_odometry();
      geometry_msgs::Quaternion l_odom_quaternion = tf::createQuaternionMsgFromYaw(data.at(2));
       
       // publish over /tf

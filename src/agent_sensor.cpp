@@ -18,14 +18,6 @@ int main(int argc, char **argv)
 
   
   Sensor_reader agent_sensor_reader(l_robot_name);
-  
-  
-  
-  while(ros::ok())
-  {
-    agent_sensor_reader.odom_imu_publishing();
-    ros::spinOnce();
-  }
-  
+  ros::spin(); 
   return 0;
 }

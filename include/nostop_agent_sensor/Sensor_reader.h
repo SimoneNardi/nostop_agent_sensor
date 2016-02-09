@@ -11,7 +11,7 @@
 #include <nav_msgs/Odometry.h>
 #include <sensor_msgs/Imu.h>
 #include <tf/transform_broadcaster.h>
-#include "std_msgs/Int32MultiArray.h"
+#include "std_msgs/UInt8MultiArray.h"
 #include <Threads.h>
 
 //// By http://www.botched.co.uk/pic-tutorials/mpu6050-setup-data-aquisition/
@@ -31,13 +31,22 @@
 #define L_BYTE_Y_GYRO_ADDRESS 0x46
 #define H_BYTE_Z_GYRO_ADDRESS 0x47
 #define L_BYTE_Z_GYRO_ADDRESS 0x48
-
+#define message_size 10 
 namespace Robotics 
 {	
 	namespace GameTheory
 	{
-
-
+	struct arduino_data{ 
+	      uint8_t start;
+	      int lw;
+	      int rw;
+	      uint8_t checksum;
+	      };
+	      
+	  union arduino_msg_union{
+	    uint8_t byte_buffer[message_size];
+	    arduino_data sensor_data;
+	  };
 		class Sensor_reader
 		{
 		public:
@@ -65,8 +74,8 @@ namespace Robotics
 
 		public:
 			Sensor_reader(std::string& robot_name); 
-			void encoder_data_in(const std_msgs::Int32MultiArray::ConstPtr& msg);
-			std::vector<float> encoder_to_odometry();
+			void encoder_data_in(const std_msgs::UInt8MultiArray::ConstPtr& msg);
+			std::vector<float> encoder_to_odometry(int& left_wheel,int& right_wheel);
 			void imu_reading_publish();
 			void odom_imu_publishing();
 			void odometry_publish();
