@@ -78,7 +78,7 @@ namespace Robotics
 			std::vector<float> encoder_to_odometry(int& left_wheel,int& right_wheel);
 			void imu_reading_publish();
 			void odom_imu_publishing();
-			void odometry_publish();
+			void odometry_publish(std::vector<float>& data);
 			~Sensor_reader();
 		};
 
